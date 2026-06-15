@@ -1,0 +1,345 @@
+{
+  "_meta": {
+    "description": "Bluegrass Gameday development seed data. All stats are fictional DEMO values for local development only (source: seed_demo). No official UK marks, no copyrighted article text, no real athlete likenesses used for collectibles.",
+    "generatedFor": "Phase 0 / Phase 1 local demo",
+    "season_football": 2025,
+    "season_basketball": 2026
+  },
+
+  "app_config": [
+    {
+      "id": "main",
+      "minSupportedVersion": "1.0.0",
+      "maintenanceMode": false,
+      "independentFanDisclaimer": "Bluegrass Gameday is an independent fan and statistics app. It is not affiliated with, endorsed by, or sponsored by the University of Kentucky, UK Athletics, the NCAA, SEC, or KHSAA.",
+      "featureFlags": {
+        "highSchool": true,
+        "communityPosts": true,
+        "predictions": true,
+        "premiumStats": false,
+        "venues": false
+      }
+    }
+  ],
+
+  "seasons": [
+    { "id": "football_2025", "year": 2025, "sport": "football", "status": "completed" },
+    { "id": "football_2026", "year": 2026, "sport": "football", "status": "preseason" },
+    { "id": "mens_basketball_2026", "year": 2026, "sport": "mens_basketball", "status": "preseason" },
+    { "id": "womens_basketball_2026", "year": 2026, "sport": "womens_basketball", "status": "preseason" }
+  ],
+
+  "teams": [
+    {
+      "id": "kentucky_football",
+      "school": "Kentucky", "teamName": "Kentucky", "nickname": "Wildcats",
+      "sport": "football", "division": "NCAA", "conference": "SEC",
+      "primaryColor": "#1E5AA8", "secondaryColor": "#C8B273",
+      "isOfficialLicensed": false,
+      "sourceIds": { "cfbdTeam": "Kentucky" }, "active": true
+    },
+    {
+      "id": "kentucky_mens_basketball",
+      "school": "Kentucky", "teamName": "Kentucky", "nickname": "Wildcats",
+      "sport": "mens_basketball", "division": "NCAA", "conference": "SEC",
+      "primaryColor": "#1E5AA8", "secondaryColor": "#C8B273",
+      "isOfficialLicensed": false,
+      "sourceIds": { "cbbdTeam": "Kentucky" }, "active": true
+    },
+    {
+      "id": "kentucky_womens_basketball",
+      "school": "Kentucky", "teamName": "Kentucky", "nickname": "Wildcats",
+      "sport": "womens_basketball", "division": "NCAA", "conference": "SEC",
+      "primaryColor": "#1E5AA8", "secondaryColor": "#C8B273",
+      "isOfficialLicensed": false, "active": true
+    }
+  ],
+
+  "games": [
+    {
+      "id": "fb_2026_open_toledo",
+      "season": 2026, "sport": "football",
+      "homeTeamId": "kentucky_football", "awayTeamId": "opp_toledo",
+      "opponentName": "Toledo", "opponentShort": "TOL",
+      "startTime": "2026-09-05T19:00:00-04:00",
+      "venue": "Kroger Field", "city": "Lexington", "state": "KY",
+      "status": "scheduled", "homeScore": null, "awayScore": null,
+      "broadcast": "SEC Network", "source": "seed_demo",
+      "featured": true, "isHome": true
+    },
+    {
+      "id": "fb_2026_rival_louisville",
+      "season": 2026, "sport": "football",
+      "homeTeamId": "kentucky_football", "awayTeamId": "opp_louisville",
+      "opponentName": "Louisville", "opponentShort": "LOU",
+      "startTime": "2026-11-28T15:30:00-05:00",
+      "venue": "Kroger Field", "city": "Lexington", "state": "KY",
+      "status": "scheduled", "homeScore": null, "awayScore": null,
+      "broadcast": "ESPN", "source": "seed_demo",
+      "featured": false, "isHome": true, "rivalry": "Governor's Cup"
+    },
+    {
+      "id": "fb_2025_final_florida",
+      "season": 2025, "sport": "football",
+      "homeTeamId": "kentucky_football", "awayTeamId": "opp_florida",
+      "opponentName": "Florida", "opponentShort": "FLA",
+      "startTime": "2025-09-13T19:45:00-04:00",
+      "venue": "Kroger Field", "city": "Lexington", "state": "KY",
+      "status": "final", "homeScore": 20, "awayScore": 13,
+      "broadcast": "ESPN", "source": "seed_demo",
+      "featured": false, "isHome": true, "result": "win"
+    },
+    {
+      "id": "mbb_2026_open_duke",
+      "season": 2026, "sport": "mens_basketball",
+      "homeTeamId": "kentucky_mens_basketball", "awayTeamId": "opp_duke",
+      "opponentName": "Duke", "opponentShort": "DUKE",
+      "startTime": "2026-11-10T21:30:00-05:00",
+      "venue": "Rupp Arena", "city": "Lexington", "state": "KY",
+      "status": "scheduled", "homeScore": null, "awayScore": null,
+      "broadcast": "ESPN", "source": "seed_demo",
+      "featured": true, "isHome": true
+    },
+    {
+      "id": "mbb_2026_rival_tennessee",
+      "season": 2026, "sport": "mens_basketball",
+      "homeTeamId": "kentucky_mens_basketball", "awayTeamId": "opp_tennessee",
+      "opponentName": "Tennessee", "opponentShort": "TENN",
+      "startTime": "2026-12-12T20:00:00-05:00",
+      "venue": "Rupp Arena", "city": "Lexington", "state": "KY",
+      "status": "scheduled", "homeScore": null, "awayScore": null,
+      "broadcast": "SEC Network", "source": "seed_demo",
+      "featured": false, "isHome": true
+    },
+    {
+      "id": "wbb_2026_southcarolina",
+      "season": 2026, "sport": "womens_basketball",
+      "homeTeamId": "kentucky_womens_basketball", "awayTeamId": "opp_south_carolina",
+      "opponentName": "South Carolina", "opponentShort": "SC",
+      "startTime": "2026-12-05T14:00:00-05:00",
+      "venue": "Memorial Coliseum", "city": "Lexington", "state": "KY",
+      "status": "scheduled", "homeScore": null, "awayScore": null,
+      "broadcast": "SEC Network+", "source": "seed_demo",
+      "featured": false, "isHome": true
+    }
+  ],
+
+  "game_summaries": [
+    {
+      "id": "fb_2026_open_toledo",
+      "gameId": "fb_2026_open_toledo",
+      "headline": "Season opener under the lights at Kroger Field",
+      "matchupVerdict": "kentucky_edge",
+      "matchupScore": 64,
+      "fanConfidence": 78,
+      "winProbability": { "kentucky": 0.72, "opponent": 0.28, "source": "seed_demo" },
+      "teamComparison": {
+        "kentucky": { "pointsPerGame": 29.4, "yardsPerPlay": 5.9, "turnoverMargin": 0.5, "thirdDownPct": 0.42 },
+        "opponent": { "pointsPerGame": 27.1, "yardsPerPlay": 5.6, "turnoverMargin": 0.2, "thirdDownPct": 0.40 }
+      },
+      "keysToGame": [
+        "Win the line of scrimmage early and establish the run",
+        "Protect the football — Toledo forces takeaways",
+        "Finish red-zone trips with touchdowns, not field goals"
+      ],
+      "playerToWatch": { "playerId": "fb_qb_demo", "reason": "Opens his season as the offense's tempo-setter" },
+      "concernMeter": { "level": "low", "note": "Early-season timing on deep passing game" },
+      "statStory": "Kentucky's biggest demo edge is ball security — a +0.5 turnover margin paired with a top-tier red-zone finish rate. If the Cats avoid the explosive play on defense, the opener should stay comfortable.",
+      "source": "seed_demo", "updatedAt": "2026-06-10T12:00:00-04:00", "confidence": "demo"
+    },
+    {
+      "id": "mbb_2026_open_duke",
+      "gameId": "mbb_2026_open_duke",
+      "headline": "Marquee November showdown at Rupp Arena",
+      "matchupVerdict": "toss_up",
+      "matchupScore": 51,
+      "fanConfidence": 66,
+      "winProbability": { "kentucky": 0.54, "opponent": 0.46, "source": "seed_demo" },
+      "teamComparison": {
+        "kentucky": { "adjOffRating": 118.6, "adjDefRating": 96.4, "tempo": 70.3, "effectiveFgPct": 0.552 },
+        "opponent": { "adjOffRating": 120.1, "adjDefRating": 95.2, "tempo": 67.8, "effectiveFgPct": 0.561 }
+      },
+      "keysToGame": [
+        "Control tempo — Kentucky wants to play fast (70+ possessions)",
+        "Win the offensive glass to create extra possessions",
+        "Defend without fouling; keep Duke off the free-throw line"
+      ],
+      "playerToWatch": { "playerId": "mbb_g_demo1", "reason": "Rising usage and a hot catch-and-shoot stretch" },
+      "concernMeter": { "level": "medium", "note": "Half-court defense vs. elite shot-making" },
+      "statStory": "This demo matchup is a coin flip on paper: nearly identical adjusted efficiency. Kentucky's path is tempo and second-chance points — the Cats' 34% offensive rebound rate is the swing factor.",
+      "source": "seed_demo", "updatedAt": "2026-06-10T12:00:00-04:00", "confidence": "demo"
+    }
+  ],
+
+  "team_stats": [
+    {
+      "id": "kentucky_football_2025_season",
+      "teamId": "kentucky_football", "season": 2025, "sport": "football", "scope": "season",
+      "stats": {
+        "record": "9-4", "pointsPerGame": 29.4, "pointsAllowedPerGame": 21.1,
+        "yardsPerPlay": 5.9, "passingYardsPerGame": 248.3, "rushingYardsPerGame": 171.6,
+        "thirdDownPct": 0.42, "redZoneScorePct": 0.86, "turnoverMargin": 0.5,
+        "sacksPerGame": 2.4, "explosivePlayRate": 0.13, "successRate": 0.43,
+        "ppaOffense": 0.19, "ppaDefense": 0.08
+      },
+      "rankings": { "pointsPerGameSEC": 6, "yardsPerPlaySEC": 5, "turnoverMarginSEC": 3 },
+      "source": "seed_demo", "updatedAt": "2026-01-05T12:00:00-05:00", "confidence": "demo"
+    },
+    {
+      "id": "kentucky_mens_basketball_2026_season",
+      "teamId": "kentucky_mens_basketball", "season": 2026, "sport": "mens_basketball", "scope": "season",
+      "stats": {
+        "record": "0-0", "pointsPerGame": 84.2, "pointsAllowedPerGame": 71.8,
+        "fieldGoalPct": 0.471, "threePointPct": 0.371, "freeThrowPct": 0.742,
+        "reboundsPerGame": 38.5, "assistsPerGame": 16.2, "turnoversPerGame": 11.4,
+        "adjOffRating": 118.6, "adjDefRating": 96.4, "adjNetRating": 22.2,
+        "tempo": 70.3, "effectiveFgPct": 0.552, "turnoverRate": 0.151,
+        "offReboundRate": 0.341, "freeThrowRate": 0.362, "assistRate": 0.58
+      },
+      "rankings": { "adjNetRatingNational": 8, "effectiveFgPctSEC": 3, "tempoNational": 42 },
+      "source": "seed_demo", "updatedAt": "2026-06-01T12:00:00-04:00", "confidence": "demo"
+    }
+  ],
+
+  "player_profiles": [
+    { "id": "fb_qb_demo", "name": "Jordan Avery", "teamId": "kentucky_football", "sport": "football", "position": "QB", "classYear": "JR", "height": "6-3", "weight": "215", "hometown": "Lexington, KY", "jersey": 7, "active": true, "source": "seed_demo" },
+    { "id": "fb_rb_demo", "name": "Darius Combs", "teamId": "kentucky_football", "sport": "football", "position": "RB", "classYear": "SO", "height": "5-11", "weight": "205", "hometown": "Louisville, KY", "jersey": 22, "active": true, "source": "seed_demo" },
+    { "id": "fb_wr_demo", "name": "Malik Turner", "teamId": "kentucky_football", "sport": "football", "position": "WR", "classYear": "SR", "height": "6-2", "weight": "198", "hometown": "Cincinnati, OH", "jersey": 11, "active": true, "source": "seed_demo" },
+    { "id": "mbb_g_demo1", "name": "Cam Whitfield", "teamId": "kentucky_mens_basketball", "sport": "mens_basketball", "position": "G", "classYear": "SO", "height": "6-4", "weight": "195", "hometown": "Lexington, KY", "jersey": 3, "active": true, "source": "seed_demo" },
+    { "id": "mbb_g_demo2", "name": "Tyrese Booker", "teamId": "kentucky_mens_basketball", "sport": "mens_basketball", "position": "G", "classYear": "FR", "height": "6-2", "weight": "185", "hometown": "Atlanta, GA", "jersey": 1, "active": true, "source": "seed_demo" },
+    { "id": "mbb_f_demo", "name": "Isaiah Mercer", "teamId": "kentucky_mens_basketball", "sport": "mens_basketball", "position": "F", "classYear": "JR", "height": "6-9", "weight": "230", "hometown": "Memphis, TN", "jersey": 24, "active": true, "source": "seed_demo" }
+  ],
+
+  "player_stats": [
+    { "id": "fb_qb_demo_2025", "playerId": "fb_qb_demo", "teamId": "kentucky_football", "season": 2025, "sport": "football", "scope": "season", "stats": { "passYards": 3015, "passTds": 24, "interceptions": 8, "completionPct": 0.642, "rushYards": 312, "qbr": 81.4 }, "source": "seed_demo", "updatedAt": "2026-01-05T12:00:00-05:00", "confidence": "demo" },
+    { "id": "fb_rb_demo_2025", "playerId": "fb_rb_demo", "teamId": "kentucky_football", "season": 2025, "sport": "football", "scope": "season", "stats": { "rushYards": 1124, "rushTds": 12, "yardsPerCarry": 5.4, "receptions": 28, "recYards": 241 }, "source": "seed_demo", "updatedAt": "2026-01-05T12:00:00-05:00", "confidence": "demo" },
+    { "id": "fb_wr_demo_2025", "playerId": "fb_wr_demo", "teamId": "kentucky_football", "season": 2025, "sport": "football", "scope": "season", "stats": { "receptions": 64, "recYards": 902, "recTds": 7, "yardsPerCatch": 14.1 }, "source": "seed_demo", "updatedAt": "2026-01-05T12:00:00-05:00", "confidence": "demo" },
+    { "id": "mbb_g_demo1_2026", "playerId": "mbb_g_demo1", "teamId": "kentucky_mens_basketball", "season": 2026, "sport": "mens_basketball", "scope": "season", "stats": { "points": 16.4, "rebounds": 4.1, "assists": 3.8, "effectiveFgPct": 0.571, "threePointPct": 0.402, "usageRate": 0.244 }, "source": "seed_demo", "updatedAt": "2026-06-01T12:00:00-04:00", "confidence": "demo" },
+    { "id": "mbb_g_demo2_2026", "playerId": "mbb_g_demo2", "teamId": "kentucky_mens_basketball", "season": 2026, "sport": "mens_basketball", "scope": "season", "stats": { "points": 12.1, "rebounds": 2.9, "assists": 5.2, "effectiveFgPct": 0.528, "threePointPct": 0.356, "assistTurnoverRatio": 2.6 }, "source": "seed_demo", "updatedAt": "2026-06-01T12:00:00-04:00", "confidence": "demo" },
+    { "id": "mbb_f_demo_2026", "playerId": "mbb_f_demo", "teamId": "kentucky_mens_basketball", "season": 2026, "sport": "mens_basketball", "scope": "season", "stats": { "points": 14.8, "rebounds": 8.6, "assists": 1.7, "effectiveFgPct": 0.602, "blocksPerGame": 1.9, "offReboundRate": 0.121 }, "source": "seed_demo", "updatedAt": "2026-06-01T12:00:00-04:00", "confidence": "demo" }
+  ],
+
+  "predictions": [
+    {
+      "id": "pred_fb_open_winner",
+      "gameId": "fb_2026_open_toledo", "sport": "football", "type": "winner",
+      "question": "Who wins the season opener?",
+      "options": [ { "id": "kentucky", "label": "Kentucky" }, { "id": "opponent", "label": "Toledo" } ],
+      "opensAt": "2026-08-29T08:00:00-04:00", "closesAt": "2026-09-05T19:00:00-04:00",
+      "status": "open", "points": 10, "createdBy": "demo_admin"
+    },
+    {
+      "id": "pred_fb_open_margin",
+      "gameId": "fb_2026_open_toledo", "sport": "football", "type": "margin_bucket",
+      "question": "What will Kentucky's winning margin be?",
+      "options": [
+        { "id": "1_7", "label": "1-7 points" },
+        { "id": "8_14", "label": "8-14 points" },
+        { "id": "15_21", "label": "15-21 points" },
+        { "id": "22_plus", "label": "22+ points" }
+      ],
+      "opensAt": "2026-08-29T08:00:00-04:00", "closesAt": "2026-09-05T19:00:00-04:00",
+      "status": "open", "points": 15, "createdBy": "demo_admin"
+    },
+    {
+      "id": "pred_mbb_open_winner",
+      "gameId": "mbb_2026_open_duke", "sport": "mens_basketball", "type": "winner",
+      "question": "Kentucky vs Duke — who takes it at Rupp?",
+      "options": [ { "id": "kentucky", "label": "Kentucky" }, { "id": "opponent", "label": "Duke" } ],
+      "opensAt": "2026-11-03T08:00:00-05:00", "closesAt": "2026-11-10T21:30:00-05:00",
+      "status": "open", "points": 10, "createdBy": "demo_admin"
+    },
+    {
+      "id": "pred_mbb_open_threes",
+      "gameId": "mbb_2026_open_duke", "sport": "mens_basketball", "type": "threes_range",
+      "question": "How many three-pointers will Kentucky make?",
+      "options": [
+        { "id": "u8", "label": "Under 8" },
+        { "id": "8_11", "label": "8-11" },
+        { "id": "12_plus", "label": "12 or more" }
+      ],
+      "opensAt": "2026-11-03T08:00:00-05:00", "closesAt": "2026-11-10T21:30:00-05:00",
+      "status": "open", "points": 15, "createdBy": "demo_admin"
+    },
+    {
+      "id": "pred_fb_final_winner",
+      "gameId": "fb_2025_final_florida", "sport": "football", "type": "winner",
+      "question": "Who wins this SEC opener?",
+      "options": [ { "id": "kentucky", "label": "Kentucky" }, { "id": "opponent", "label": "Florida" } ],
+      "opensAt": "2025-09-08T08:00:00-04:00", "closesAt": "2025-09-13T19:45:00-04:00",
+      "status": "scored", "points": 10, "correctOptionId": "kentucky", "createdBy": "demo_admin"
+    }
+  ],
+
+  "prediction_entries": [
+    { "id": "entry_demo_1", "predictionId": "pred_fb_final_winner", "gameId": "fb_2025_final_florida", "userId": "demo_user_self", "selectedOptionId": "kentucky", "numericValue": null, "locked": true, "isCorrect": true, "pointsAwarded": 10, "createdAt": "2025-09-12T10:00:00-04:00" },
+    { "id": "entry_demo_2", "predictionId": "pred_fb_final_winner", "gameId": "fb_2025_final_florida", "userId": "demo_user_bbn1", "selectedOptionId": "kentucky", "numericValue": null, "locked": true, "isCorrect": true, "pointsAwarded": 10, "createdAt": "2025-09-12T11:00:00-04:00" },
+    { "id": "entry_demo_3", "predictionId": "pred_fb_final_winner", "gameId": "fb_2025_final_florida", "userId": "demo_user_bbn2", "selectedOptionId": "opponent", "numericValue": null, "locked": true, "isCorrect": false, "pointsAwarded": 0, "createdAt": "2025-09-12T12:00:00-04:00" }
+  ],
+
+  "users": [
+    { "id": "demo_admin", "displayName": "Demo Admin", "email": "admin@bluegrassgameday.dev", "role": "admin", "favoriteCollegeTeams": ["kentucky"], "favoriteSports": ["football", "mens_basketball"], "homeState": "KY", "xp": 5400, "level": 6, "predictionRecord": { "total": 40, "correct": 25, "streak": 4 } },
+    { "id": "demo_user_self", "displayName": "You", "email": "you@bluegrassgameday.dev", "role": "user", "favoriteCollegeTeams": ["kentucky"], "favoriteSports": ["football", "mens_basketball"], "favoriteHighSchools": ["frederick_douglass"], "homeState": "KY", "xp": 1280, "level": 4, "predictionRecord": { "total": 25, "correct": 14, "streak": 3 } },
+    { "id": "demo_user_bbn1", "displayName": "BluegrassBeliever", "email": "bbn1@bluegrassgameday.dev", "role": "user", "favoriteSports": ["mens_basketball"], "homeState": "KY", "xp": 3120, "level": 5, "predictionRecord": { "total": 33, "correct": 21, "streak": 6 } },
+    { "id": "demo_user_bbn2", "displayName": "RuppRoarer", "email": "bbn2@bluegrassgameday.dev", "role": "user", "favoriteSports": ["football"], "homeState": "OH", "xp": 2040, "level": 4, "predictionRecord": { "total": 28, "correct": 15, "streak": 0 } },
+    { "id": "demo_user_bbn3", "displayName": "FilmRoomFan", "email": "bbn3@bluegrassgameday.dev", "role": "user", "favoriteSports": ["football", "mens_basketball"], "homeState": "KY", "xp": 760, "level": 3, "predictionRecord": { "total": 12, "correct": 7, "streak": 2 } }
+  ],
+
+  "badges": [
+    { "id": "first_pick", "name": "First Pick", "description": "Submitted your first prediction.", "category": "prediction", "rarity": "common", "criteria": { "type": "prediction_count", "threshold": 1 } },
+    { "id": "three_game_streak", "name": "3-Game Streak", "description": "Correct predictions in three straight games.", "category": "prediction", "rarity": "rare", "criteria": { "type": "prediction_streak", "threshold": 3 } },
+    { "id": "rivalry_prophet", "name": "Rivalry Prophet", "description": "Nailed a rivalry-game prediction.", "category": "prediction", "rarity": "epic", "criteria": { "type": "rivalry_correct", "threshold": 1 } },
+    { "id": "upset_caller", "name": "Upset Caller", "description": "Correctly called an upset.", "category": "prediction", "rarity": "epic", "criteria": { "type": "upset_correct", "threshold": 1 } },
+    { "id": "exact_score_miracle", "name": "Exact Score Miracle", "description": "Predicted an exact final score.", "category": "prediction", "rarity": "legendary", "criteria": { "type": "exact_score", "threshold": 1 } },
+    { "id": "stats_lab_rookie", "name": "Stats Lab Rookie", "description": "Opened the Stats Lab for the first time.", "category": "stats", "rarity": "common", "criteria": { "type": "open_stats_lab", "threshold": 1 } },
+    { "id": "four_factors_fan", "name": "Four Factors Fan", "description": "Explored the basketball Four Factors.", "category": "stats", "rarity": "rare", "criteria": { "type": "view_four_factors", "threshold": 1 } },
+    { "id": "epa_explorer", "name": "EPA Explorer", "description": "Dug into advanced football metrics.", "category": "stats", "rarity": "rare", "criteria": { "type": "view_advanced_football", "threshold": 1 } },
+    { "id": "matchup_master", "name": "Matchup Master", "description": "Read 10 matchup breakdowns.", "category": "stats", "rarity": "epic", "criteria": { "type": "view_matchup", "threshold": 10 } },
+    { "id": "kickoff_crew", "name": "Kickoff Crew", "description": "Checked in for a football gameday.", "category": "gameday", "rarity": "common", "criteria": { "type": "gameday_open", "threshold": 1 } },
+    { "id": "opening_tip", "name": "Opening Tip", "description": "Checked in for a basketball gameday.", "category": "gameday", "rarity": "common", "criteria": { "type": "gameday_open_bball", "threshold": 1 } },
+    { "id": "bluegrass_pipeline_scout", "name": "Bluegrass Pipeline Scout", "description": "Followed a Kentucky high school.", "category": "high_school", "rarity": "rare", "criteria": { "type": "follow_high_school", "threshold": 1 } },
+    { "id": "friday_night_lights", "name": "Friday Night Lights", "description": "Checked the Friday night scoreboard.", "category": "high_school", "rarity": "common", "criteria": { "type": "view_hs_scoreboard", "threshold": 1 } }
+  ],
+
+  "user_badges": [
+    { "id": "ub_self_first_pick", "userId": "demo_user_self", "badgeId": "first_pick", "earnedAt": "2025-09-12T10:05:00-04:00" },
+    { "id": "ub_self_stats_rookie", "userId": "demo_user_self", "badgeId": "stats_lab_rookie", "earnedAt": "2025-09-20T15:00:00-04:00" },
+    { "id": "ub_self_kickoff", "userId": "demo_user_self", "badgeId": "kickoff_crew", "earnedAt": "2025-09-13T19:00:00-04:00" }
+  ],
+
+  "polls": [
+    {
+      "id": "poll_demo_excitement",
+      "question": "Which Wildcat are you most excited to watch this season?",
+      "sport": "mens_basketball", "status": "open",
+      "options": [
+        { "id": "g1", "label": "Cam Whitfield (G)", "votes": 142 },
+        { "id": "g2", "label": "Tyrese Booker (G)", "votes": 98 },
+        { "id": "f1", "label": "Isaiah Mercer (F)", "votes": 121 }
+      ],
+      "closesAt": "2026-11-01T00:00:00-04:00", "createdBy": "demo_admin"
+    }
+  ],
+
+  "news_cards": [
+    { "id": "news_demo_1", "title": "Summer workouts underway as the Cats build toward the opener", "sourceName": "Admin Demo", "url": "https://www.on3.com/teams/kentucky-wildcats/", "summary": "Short admin-written summary placeholder. Tap to read the full story at the source. (No article text is copied into this app.)", "sport": "football", "tags": ["team_news"], "publishedAt": "2026-06-12T09:00:00-04:00", "featured": true, "createdBy": "demo_admin" },
+    { "id": "news_demo_2", "title": "Basketball nonconference schedule features marquee matchups", "sourceName": "Admin Demo", "url": "https://collegebasketballdata.com/", "summary": "Admin-written summary placeholder linking to a public data source. Full details at the link.", "sport": "mens_basketball", "tags": ["schedule"], "publishedAt": "2026-06-08T09:00:00-04:00", "featured": true, "createdBy": "demo_admin" },
+    { "id": "news_demo_3", "title": "KHSAA releases fall sports calendar", "sourceName": "Admin Demo", "url": "https://khsaa.org/", "summary": "Admin-written summary placeholder. Official schedules and stat leaders live on the KHSAA site.", "sport": "high_school", "tags": ["high_school"], "publishedAt": "2026-06-05T09:00:00-04:00", "featured": false, "createdBy": "demo_admin" }
+  ],
+
+  "high_schools": [
+    { "id": "frederick_douglass", "name": "Frederick Douglass", "city": "Lexington", "state": "KY", "sports": ["football", "boys_basketball", "girls_basketball"], "officialUrl": null, "sourceUrls": { "khsaa": "https://khsaa.org/" }, "verified": false },
+    { "id": "trinity_louisville", "name": "Trinity", "city": "Louisville", "state": "KY", "sports": ["football", "boys_basketball"], "officialUrl": null, "sourceUrls": { "khsaa": "https://khsaa.org/" }, "verified": false },
+    { "id": "male_louisville", "name": "Male", "city": "Louisville", "state": "KY", "sports": ["football", "boys_basketball", "baseball"], "officialUrl": null, "sourceUrls": { "khsaa": "https://khsaa.org/" }, "verified": false }
+  ],
+
+  "high_school_games": [
+    { "id": "hs_game_demo_1", "schoolId": "frederick_douglass", "sport": "football", "season": 2026, "opponent": "Bryan Station", "startTime": "2026-08-21T19:00:00-04:00", "status": "scheduled", "schoolScore": null, "opponentScore": null, "source": "manual", "sourceUrl": "https://khsaa.org/" },
+    { "id": "hs_game_demo_2", "schoolId": "trinity_louisville", "sport": "football", "season": 2026, "opponent": "St. Xavier", "startTime": "2026-08-22T20:00:00-04:00", "status": "scheduled", "schoolScore": null, "opponentScore": null, "source": "manual", "sourceUrl": "https://khsaa.org/" }
+  ],
+
+  "recruits": [
+    { "id": "recruit_demo_1", "name": "Brandon Hayes", "sport": "football", "position": "WR", "classYear": 2027, "highSchoolId": "frederick_douglass", "homeTown": "Lexington, KY", "state": "KY", "stars": 4, "rating": 0.92, "interestLevel": "offered", "commitStatus": "uncommitted", "committedTo": null, "confidence": "reported_by_media", "sourceLinks": ["https://www.on3.com/teams/kentucky-wildcats/"], "lastUpdatedAt": "2026-06-01T12:00:00-04:00" },
+    { "id": "recruit_demo_2", "name": "Devin Carter", "sport": "mens_basketball", "position": "PG", "classYear": 2027, "highSchoolId": "male_louisville", "homeTown": "Louisville, KY", "state": "KY", "stars": 5, "rating": 0.98, "interestLevel": "high", "commitStatus": "uncommitted", "committedTo": null, "confidence": "fan_rumor", "sourceLinks": ["https://www.on3.com/teams/kentucky-wildcats/"], "lastUpdatedAt": "2026-05-20T12:00:00-04:00" }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "bluegrass-gameday",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bluegrass Gameday — independent Kentucky sports fan + stats app (monorepo root).",
+  "scripts": {
+    "emulators": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data",
+    "emulators:fresh": "firebase emulators:start",
+    "seed": "cross-env FIRESTORE_EMULATOR_HOST=localhost:8080 GCLOUD_PROJECT=bluegrass-gameday-dev npm --prefix scripts run seed",
+    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  }
+}

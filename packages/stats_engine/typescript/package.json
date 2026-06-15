@@ -1,0 +1,15 @@
+{
+  "name": "@bluegrass/stats-engine",
+  "version": "1.0.0",
+  "description": "Bluegrass Gameday — TS stat helpers for Cloud Functions",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}

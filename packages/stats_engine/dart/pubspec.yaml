@@ -1,0 +1,14 @@
+name: stats_engine
+description: >-
+  Fan-friendly Kentucky sports stat helpers for Bluegrass Gameday. Provides
+  metric label maps, plain-English explanations, basketball Four Factors,
+  football basic/advanced helpers, and percentile ranking utilities.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.8.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^5.0.0

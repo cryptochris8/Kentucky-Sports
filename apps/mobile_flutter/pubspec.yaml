@@ -1,0 +1,45 @@
+name: bluegrass_gameday
+description: "Bluegrass Gameday — an independent Kentucky sports fan & stats app."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State management (locked decision — Riverpod, not BLoC).
+  flutter_riverpod: ^2.6.1
+
+  # Routing (locked decision).
+  go_router: ^14.6.2
+
+  # Date/time + number formatting for countdowns and stat values.
+  intl: ^0.20.2
+
+  # Typography. google_fonts downloads fonts at runtime from a Google CDN;
+  # the theme falls back to a bundled system font if unavailable, so the app
+  # still runs fully offline.
+  google_fonts: ^6.2.1
+
+  # Local stat-engine package (label maps, explainers, Four Factors, levels).
+  stats_engine:
+    path: ../../packages/stats_engine/dart
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    # Build-time copy of the canonical seed at seed_data/dev_seed.json.
+    # The MockDataSource loads this so the app runs with zero backend.
+    - assets/seed/dev_seed.json

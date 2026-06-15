@@ -1,0 +1,14 @@
+{
+  "name": "@bluegrass/shared-models",
+  "version": "1.0.0",
+  "description": "Bluegrass Gameday — canonical Firestore types",
+  "main": "dist/index.d.ts",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

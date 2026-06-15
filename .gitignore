@@ -1,0 +1,55 @@
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# ---- Secrets / env ----
+.env
+.env.*
+!.env.example
+*.local
+firebase/serviceAccount*.json
+**/google-services.json
+**/GoogleService-Info.plist
+.runtimeconfig.json
+
+# ---- Node ----
+node_modules/
+npm-debug.log*
+yarn-error.log*
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# ---- Firebase ----
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+database-debug.log*
+pubsub-debug.log*
+emulator-data/
+functions/lib/
+
+# ---- Flutter / Dart ----
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+**/doc/api/
+**/ios/Flutter/.last_build_id
+**/ios/Pods/
+**/android/.gradle/
+**/build/
+*.iml
+.flutter-versions
+
+# ---- Misc ----
+extracted/
+*.log

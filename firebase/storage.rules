@@ -1,0 +1,38 @@
+rules_version = '2';
+
+// Bluegrass Gameday — Cloud Storage rules (Phase 0/1 draft)
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() { return request.auth != null; }
+    function isEditor() {
+      return isSignedIn() &&
+        (request.auth.token.role == 'editor' || request.auth.token.role == 'admin');
+    }
+    function isImage() {
+      return request.resource.contentType.matches('image/.*')
+        && request.resource.size < 5 * 1024 * 1024; // 5 MB cap
+    }
+
+    // Public, read-only content assets (badge art, card art) — written by editors only.
+    match /content/{allPaths=**} {
+      allow read: if true;
+      allow write: if isEditor() && isImage();
+    }
+
+    // Per-user uploads (avatars). Users manage only their own folder.
+    match /users/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == userId && isImage();
+    }
+
+    // Raw provider snapshots / sync debug — Functions service account only.
+    match /sync_snapshots/{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

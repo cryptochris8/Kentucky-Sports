@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2021",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "lib",
+    "rootDir": "src",
+    "resolveJsonModule": true,
+    "lib": ["ES2021"],
+    "baseUrl": ".",
+    "paths": {
+      "@bluegrass/shared-models": ["../packages/shared_models/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "lib", "**/*.test.ts", "**/*.spec.ts"]
+}

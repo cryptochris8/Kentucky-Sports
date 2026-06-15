@@ -1,0 +1,36 @@
+openapi: 3.0.3
+info:
+  title: Bluegrass Gameday Internal API
+  version: 0.1.0
+paths:
+  /home:
+    get:
+      summary: Get home pulse read model
+  /teams/{teamId}:
+    get:
+      summary: Get team profile and summary
+  /games/{gameId}:
+    get:
+      summary: Get game details and gameday summary
+  /predictions/{predictionId}/submit:
+    post:
+      summary: Submit a user prediction
+  /admin/sync/{provider}:
+    post:
+      summary: Trigger a provider sync
+components:
+  schemas:
+    Game:
+      type: object
+      properties:
+        id: { type: string }
+        sport: { type: string }
+        season: { type: integer }
+        status: { type: string }
+    Prediction:
+      type: object
+      properties:
+        id: { type: string }
+        gameId: { type: string }
+        question: { type: string }
+        status: { type: string }

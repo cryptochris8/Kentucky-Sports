@@ -1,0 +1,27 @@
+{
+  "collections": [
+    "users",
+    "teams",
+    "seasons",
+    "games",
+    "game_summaries",
+    "team_stats",
+    "player_profiles",
+    "player_stats",
+    "predictions",
+    "prediction_entries",
+    "badges",
+    "user_badges",
+    "high_schools",
+    "high_school_games",
+    "recruits",
+    "news_cards",
+    "community_posts",
+    "polls",
+    "app_config",
+    "sync_runs",
+    "venues",
+    "watch_parties",
+    "check_ins"
+  ]
+}
