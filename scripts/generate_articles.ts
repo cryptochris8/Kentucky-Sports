@@ -21,7 +21,7 @@
  *   - Stats come ONLY from stored data — never invented.
  */
 
-import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -30,6 +30,19 @@ import { dirname, resolve } from "node:path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SEED_PATH = resolve(__dirname, "../seed_data/dev_seed.json");
 const OUT_DIR = resolve(__dirname, "../seed_data/generated");
+
+// ── Load repo-root .env.local (gitignored) into process.env ───────────────────
+// Store ANTHROPIC_API_KEY (and optional ANTHROPIC_MODEL) in a .env.local file at
+// the repo root instead of setting a shell variable each run. Shell vars win.
+const ENV_LOCAL = resolve(__dirname, "../.env.local");
+if (existsSync(ENV_LOCAL)) {
+  for (const line of readFileSync(ENV_LOCAL, "utf8").split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (m && !process.env[m[1]]) {
+      process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+    }
+  }
+}
 
 // ── Model config ──────────────────────────────────────────────────────────────
 
@@ -54,7 +67,9 @@ HARD RULES — these override everything else:
 // Zod is imported dynamically only in the LLM branch; for the template branch
 // we replicate the shape manually. The import below is static because zod is
 // in our dep tree (scripts/package.json) and used for type inference.
-import { z } from "zod";
+// NOTE: import from "zod/v4" (not "zod") — the Anthropic SDK's zodOutputFormat
+// expects the Zod 4 schema shape. zod 3.25+ ships the v4 API at this subpath.
+import { z } from "zod/v4";
 
 const EditorialSchema = z.object({
   headline: z.string(),

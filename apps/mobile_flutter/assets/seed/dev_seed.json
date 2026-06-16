@@ -417,37 +417,131 @@
       "gameId": "fb_2026_youngstown",
       "sport": "football",
       "status": "published",
-      "headline": "New Season Kicks Off: Kentucky Hosts Youngstown State",
-      "subheadline": "A home opener and a chance to set the tone before the SEC gauntlet.",
-      "openingNarrative": "Kroger Field opens its gates for a new season as Kentucky welcomes Youngstown State. Coming off a 5-7 2025, the Cats treat the opener as a chance to find rhythm, get the run game humming, and build confidence before a demanding nine-game SEC slate that includes Alabama, LSU, Florida, and the Governor's Cup. As a heavy favorite against an FCS visitor, the focus is execution and health, not just the scoreboard.",
+      "headline": "Fresh Start at Kroger Field: Kentucky Opens 2026 Against Youngstown State",
+      "subheadline": "After a 5-7 grind in 2025, the Cats get a home tune-up to find their rhythm before the SEC gauntlet",
+      "openingNarrative": "New season, clean slate. Kentucky kicks off 2026 at Kroger Field against FCS visitor Youngstown State, and the mission is simple: shake off the rust from a disappointing 5-7 campaign and build confidence early. The win probability sits at a comfortable 92 percent, and a matchup score of 88 reflects just how lopsided this opener looks on paper. But for a program hungry to reset, the real value isn't the result — it's establishing tempo, getting bodies healthy, and proving the offense can find a groove before the schedule turns brutal.",
       "tacticalBreakdown": {
-        "title": "The Chess Match",
-        "narrative": "Establish the run early behind the offensive line and let play-action open the field. The first quarter is about tempo and tone — get ahead, get the starters comfortable, and avoid the sloppy mistakes that hurt last year's margin."
+        "title": "Setting the Tone Early",
+        "narrative": "The blueprint is straightforward. Kentucky must start fast and impose its will in the first quarter, leaning on a run game that averaged 148.3 yards per game in 2025. Establish the ground attack behind the line, open up play-action, and let the passing game find rhythm. With a 39 percent third-down rate and 81 percent red-zone scoring last year, finishing drives matters. Win the early downs, stay healthy, and let the depth take over against an overmatched FCS opponent."
       },
       "byTheNumbers": {
-        "title": "By the Numbers (demo)",
+        "title": "The Tale of the Tape",
         "items": [
-          "2025 record: 5-7 (2-6 SEC) — a bounce-back year is the goal.",
-          "Demo points per game: 23.8 — finding more explosive plays is priority one.",
-          "Demo turnover margin: -0.2 — protect the football to flip close games.",
-          "Seven home games in 2026, including Alabama, LSU, Florida and Louisville."
+          "Kentucky win probability: 92% — Youngstown State: 8%",
+          "Matchup score: 88 with a Kentucky edge",
+          "Fan confidence: 84",
+          "Kentucky 2025 record: 5-7",
+          "Points per game: 23.8 for UK, 24.6 for YSU",
+          "Yards per play: 5.4 UK, 5.1 YSU",
+          "Third-down rate: 39% UK, 41% YSU",
+          "Turnover margin: -0.2 UK, +0.3 YSU"
         ]
       },
       "playerSpotlights": [
-        { "playerId": "fb_qb_demo", "name": "Demo QB1", "teamId": "kentucky_football", "position": "QB", "narrative": "Sets the tempo for a new season — efficiency and ball security are the watchwords.", "statline": "2,480 yds, 16 TD, 11 INT (2025 demo)" },
-        { "playerId": "fb_rb_demo", "name": "Demo RB1", "teamId": "kentucky_football", "position": "RB", "narrative": "The early-down workhorse who keeps the offense on schedule.", "statline": "812 rush yds, 7 TD (2025 demo)" }
+        {
+          "playerId": "fb_qb_demo",
+          "name": "Demo QB1",
+          "position": "QB",
+          "narrative": "The junior signal-caller sets the tempo as Kentucky opens a new chapter. Cutting down on the 11 interceptions from a year ago and lifting that completion rate will be the key to unlocking this offense. A clean, confident performance here builds momentum heading into conference play.",
+          "statline": "2,480 pass yds, 16 TD, 11 INT, 60.1% comp, 240 rush yds, 62.5 QBR"
+        },
+        {
+          "playerId": "fb_rb_demo",
+          "name": "Demo RB1",
+          "position": "RB",
+          "narrative": "The sophomore back is the engine that should get rolling early. At 4.6 yards per carry with soft hands out of the backfield, he gives Kentucky a versatile weapon to control the clock and set up the play-action looks.",
+          "statline": "812 rush yds, 7 TD, 4.6 YPC, 22 rec, 168 rec yds"
+        },
+        {
+          "playerId": "fb_wr_demo",
+          "name": "Demo WR1",
+          "position": "WR",
+          "narrative": "The senior wideout is the reliable target this passing game needs. With 712 yards and a 14-yard average per catch, he stretches the field and gives the quarterback a trusted go-to on third down.",
+          "statline": "51 rec, 712 yds, 5 TD, 14.0 yds/catch"
+        }
       ],
       "theVerdict": {
         "title": "The Verdict",
-        "prediction": "Kentucky by 24",
-        "confidence": 90,
-        "narrative": "An FCS opener at home should be comfortable. Win clean, stay healthy, and carry momentum into the Alabama game in Week 2."
+        "prediction": "Kentucky cruises in the opener",
+        "confidence": 84,
+        "narrative": "This is a get-right game, and Kentucky should handle it. The talent gap is significant, the venue is friendly, and the motivation to erase 2025 is real. The only concern is Week 1 rust and avoiding injuries. Expect the Cats to control the line, lean on the run, and build the confidence they'll need when the SEC schedule arrives."
       },
-      "closingLine": "A new season begins in the Bluegrass — first, take care of business at home.",
-      "sources": ["seed_demo:team_stats/kentucky_football_2025_season", "seed_demo:game_summaries/fb_2026_youngstown", "real_schedule:ukathletics.com"],
-      "model": "seed_template",
-      "generatedAt": "2026-06-15T12:00:00-04:00",
-      "publishedAt": "2026-06-15T12:00:00-04:00",
+      "closingLine": "New year, fresh start — the Cats open at home with everything to gain and a season to reclaim.",
+      "sources": [
+        "seed_demo:team_stats/kentucky_football_2025_season",
+        "seed_demo:game_summaries/fb_2026_youngstown",
+        "seed_demo:games/fb_2026_youngstown"
+      ],
+      "model": "claude-opus-4-8",
+      "generatedAt": "2026-06-16T08:40:05.236Z",
+      "publishedAt": "2026-06-16T08:40:05.236Z",
+      "confidence": "demo",
+      "featured": true
+    },
+    {
+      "id": "article_mbb_2026_louisville_preview",
+      "type": "preview",
+      "gameId": "mbb_2026_louisville",
+      "sport": "mens_basketball",
+      "status": "published",
+      "headline": "Bluegrass Renewed: Cats Eye Rivalry Statement at Rupp",
+      "subheadline": "Kentucky's tempo and second-chance scoring shape a projected edge over Louisville",
+      "openingNarrative": "There's no game on the calendar that gets the Bluegrass buzzing like this one, and the projected meeting at Rupp Arena carries every ounce of that weight. Kentucky enters with a humming offense — a projected 118.6 adjusted offensive rating and a tempo of 70.3 that wants to run Louisville off their feet. The Cards counter with their own pop at 114.2, but the demo projections favor the home side at 61% win probability. A note for clarity: the 2026-27 schedule isn't finalized, so treat this as a placeholder for a very real rivalry.",
+      "tacticalBreakdown": {
+        "title": "How Kentucky Wins the Floor",
+        "narrative": "Pace is the lever. Kentucky's 70.3 tempo outruns Louisville's 67.5, and getting into the open floor maximizes a 55.2% effective field goal mark. The other battleground is the glass — Kentucky's 34.1% offensive rebound rate fuels second-chance points that demoralize on the road. Defensively, the Cats' projected 96.4 adjusted defensive rating must hold without sending Louisville to the line. Win possessions early, push the count past 70, and protect Rupp."
+      },
+      "byTheNumbers": {
+        "title": "The Tale of the Tape",
+        "items": [
+          "Kentucky projected adjusted offensive rating: 118.6",
+          "Louisville projected adjusted offensive rating: 114.2",
+          "Kentucky adjusted net rating: 22.2 (8th nationally)",
+          "Kentucky effective FG%: 55.2% (3rd in SEC)",
+          "Tempo edge: 70.3 to 67.5",
+          "Win probability: Kentucky 61%, Louisville 39%",
+          "Points per game: 84.2 scored, 71.8 allowed",
+          "Offensive rebound rate: 34.1%"
+        ]
+      },
+      "playerSpotlights": [
+        {
+          "playerId": "mbb_g_demo1",
+          "name": "Demo Guard1",
+          "position": "G (SO)",
+          "narrative": "The designated player to watch, the Lexington native brings rising usage and a deadly catch-and-shoot stretch. His 40.2% from deep stretches defenses and opens driving lanes for everyone.",
+          "statline": "16.4 PPG, 4.1 REB, 3.8 AST, 57.1 eFG%, 40.2 3P%, 24.4% usage"
+        },
+        {
+          "playerId": "mbb_g_demo2",
+          "name": "Demo Guard2",
+          "position": "G (FR)",
+          "narrative": "The freshman floor general keeps the engine clean, distributing with a 2.6 assist-to-turnover ratio and providing scoring punch when Kentucky pushes pace.",
+          "statline": "12.1 PPG, 5.2 AST, 2.9 REB, 52.8 eFG%, 2.6 AST/TO"
+        },
+        {
+          "playerId": "mbb_f_demo",
+          "name": "Demo Forward1",
+          "position": "F (JR)",
+          "narrative": "The interior anchor cleans the glass and finishes at a blistering 60.2% clip while protecting the rim. His 8.6 boards a night feed those second-chance points.",
+          "statline": "14.8 PPG, 8.6 REB, 1.9 BLK, 60.2 eFG%"
+        }
+      ],
+      "theVerdict": {
+        "title": "The Verdict",
+        "prediction": "Kentucky holds serve at home",
+        "confidence": 68,
+        "narrative": "The projections lean Kentucky's way, and the formula is clear: control tempo, dominate the offensive glass, and defend without fouling. Rivalry intensity raises the concern meter to medium, and half-court execution will be tested. But at Rupp, with a 22.2 net rating, the Cats have the firepower to make a statement."
+      },
+      "closingLine": "Placeholder date, permanent stakes — when the Cards come to Rupp, the Bluegrass holds its breath.",
+      "sources": [
+        "seed_demo:team_stats/kentucky_mens_basketball_2026_season",
+        "seed_demo:game_summaries/mbb_2026_louisville",
+        "seed_demo:games/mbb_2026_louisville"
+      ],
+      "model": "claude-opus-4-8",
+      "generatedAt": "2026-06-16T08:40:26.952Z",
+      "publishedAt": "2026-06-16T08:40:26.952Z",
       "confidence": "demo",
       "featured": true
     },
@@ -469,7 +563,14 @@
         ]
       },
       "playerSpotlights": [
-        { "playerId": "fb_rb_demo", "name": "Demo RB1", "teamId": "kentucky_football", "position": "RB", "narrative": "Found running room and helped control the clock in a comfortable win.", "statline": "demo game line" }
+        {
+          "playerId": "fb_rb_demo",
+          "name": "Demo RB1",
+          "teamId": "kentucky_football",
+          "position": "RB",
+          "narrative": "Found running room and helped control the clock in a comfortable win.",
+          "statline": "demo game line"
+        }
       ],
       "theVerdict": {
         "title": "The Takeaway",
@@ -477,7 +578,10 @@
         "narrative": "Exactly the kind of complementary football the Cats wanted — score points, stay clean, and bank a non-conference win."
       },
       "closingLine": "A high-scoring afternoon and a comfortable W to file away.",
-      "sources": ["real_result:2025 Kentucky 48-23 Eastern Michigan", "seed_demo:games/fb_2025_eastern_michigan"],
+      "sources": [
+        "real_result:2025 Kentucky 48-23 Eastern Michigan",
+        "seed_demo:games/fb_2025_eastern_michigan"
+      ],
       "model": "seed_template",
       "generatedAt": "2025-09-06T23:30:00-04:00",
       "publishedAt": "2025-09-06T23:45:00-04:00",

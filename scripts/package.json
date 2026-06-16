@@ -6,16 +6,17 @@
   "description": "Dev scripts for Bluegrass Gameday (seed loader, article generator).",
   "scripts": {
     "seed": "tsx seed_firestore.ts",
-    "generate": "tsx generate_articles.ts"
+    "generate": "tsx generate_articles.ts",
+    "apply-articles": "tsx apply_generated_articles.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.52.0",
+    "@anthropic-ai/sdk": "^0.104.2",
     "firebase-admin": "^12.7.0",
-    "zod": "^3.23.8"
+    "zod": "^3.25.0"
   },
   "devDependencies": {
+    "@types/node": "^22.9.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.6.3",
-    "@types/node": "^22.9.0"
+    "typescript": "^5.6.3"
   }
 }
