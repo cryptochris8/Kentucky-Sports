@@ -31,12 +31,16 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const SEED_PATH = resolve(__dirname, "../seed_data/dev_seed.json");
 const OUT_DIR = resolve(__dirname, "../seed_data/generated");
 
-// ── Load repo-root .env.local (gitignored) into process.env ───────────────────
-// Store ANTHROPIC_API_KEY (and optional ANTHROPIC_MODEL) in a .env.local file at
-// the repo root instead of setting a shell variable each run. Shell vars win.
-const ENV_LOCAL = resolve(__dirname, "../.env.local");
-if (existsSync(ENV_LOCAL)) {
-  for (const line of readFileSync(ENV_LOCAL, "utf8").split(/\r?\n/)) {
+// ── Load .env.local files (gitignored) into process.env ───────────────────────
+// Put ANTHROPIC_API_KEY (and optional ANTHROPIC_MODEL) in EITHER the repo-root
+// .env.local OR functions/.env.local — both are checked, so you don't have to set
+// a shell variable each run. Variables already set in the shell take precedence.
+for (const envPath of [
+  resolve(__dirname, "../.env.local"),
+  resolve(__dirname, "../functions/.env.local"),
+]) {
+  if (!existsSync(envPath)) continue;
+  for (const line of readFileSync(envPath, "utf8").split(/\r?\n/)) {
     const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
     if (m && !process.env[m[1]]) {
       process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");

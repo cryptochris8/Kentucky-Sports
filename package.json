@@ -7,7 +7,10 @@
     "emulators": "firebase emulators:start --import=./emulator-data --export-on-exit=./emulator-data",
     "emulators:fresh": "firebase emulators:start",
     "seed": "cross-env FIRESTORE_EMULATOR_HOST=localhost:8080 GCLOUD_PROJECT=bluegrass-gameday-dev npm --prefix scripts run seed",
-    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage"
+    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage",
+    "generate": "npm --prefix scripts run generate",
+    "apply-articles": "npm --prefix scripts run apply-articles",
+    "check-keys": "npm --prefix scripts run check-keys"
   },
   "devDependencies": {
     "cross-env": "^7.0.3"

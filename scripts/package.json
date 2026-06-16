@@ -7,7 +7,8 @@
   "scripts": {
     "seed": "tsx seed_firestore.ts",
     "generate": "tsx generate_articles.ts",
-    "apply-articles": "tsx apply_generated_articles.ts"
+    "apply-articles": "tsx apply_generated_articles.ts",
+    "check-keys": "tsx check_keys.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.2",
