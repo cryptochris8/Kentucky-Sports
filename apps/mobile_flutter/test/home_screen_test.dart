@@ -1,13 +1,15 @@
-// Integration-style test: the Pulse home renders the next game's matchup.
+// Integration-style test: the Home Bento hub renders the greeting, the
+// featured-game hero tile, and the "Your Picks" + "Leaderboard" tiles that
+// surface Predictions.
 //
 // We override the data source with an in-memory fake (no seed asset, no
-// network) so the real PulseScreen + providers render deterministically.
+// network) so the real HomeScreen + providers render deterministically.
 
 import 'package:bluegrass_gameday/app/theme/theme.dart';
 import 'package:bluegrass_gameday/core/data/app_data_source.dart';
 import 'package:bluegrass_gameday/core/models/models.dart';
 import 'package:bluegrass_gameday/core/providers/data_providers.dart';
-import 'package:bluegrass_gameday/features/home/pulse_screen.dart';
+import 'package:bluegrass_gameday/features/home/home_screen.dart';
 // Hide Material's Badge widget so our Badge model name is unambiguous.
 import 'package:flutter/material.dart' hide Badge;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,6 +48,11 @@ class _FakeDataSource implements AppDataSource {
           'displayName': 'You',
           'xp': 1280,
           'level': 3,
+          'predictionRecord': <String, dynamic>{
+            'total': 8,
+            'correct': 5,
+            'streak': 2,
+          },
         }),
       ];
 
@@ -85,8 +92,8 @@ class _FakeDataSource implements AppDataSource {
 }
 
 void main() {
-  testWidgets('Pulse home renders the next game matchup + greeting',
-      (WidgetTester tester) async {
+  testWidgets('Home hub renders the greeting, the gameday hero, and the '
+      'picks/leaderboard tiles', (WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: <Override>[
@@ -94,7 +101,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: BgTheme.light(),
-          home: const PulseScreen(),
+          home: const HomeScreen(),
         ),
       ),
     );
@@ -109,5 +116,16 @@ void main() {
     // The matchup hero shows Kentucky vs the opponent.
     expect(find.text('Kentucky'), findsWidgets);
     expect(find.text('Youngstown State'), findsWidgets);
+
+    // The hub surfaces Predictions via the Your Picks + Leaderboard tiles
+    // (scroll them into view — they sit below the gameday hero).
+    await tester.scrollUntilVisible(find.text('YOUR PICKS'), 300);
+    expect(find.text('YOUR PICKS'), findsOneWidget);
+    expect(find.text('LEADERBOARD'), findsOneWidget);
+
+    // The Explore row scales the hub to the vision's pillars.
+    await tester.scrollUntilVisible(find.text('The Vault'), 300);
+    expect(find.text('The Vault'), findsOneWidget);
+    expect(find.text('Bluegrass Preps'), findsOneWidget);
   });
 }

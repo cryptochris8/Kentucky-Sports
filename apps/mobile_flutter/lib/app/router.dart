@@ -5,14 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../core/providers/local_state.dart';
 import '../features/badges/badges_screen.dart';
 import '../features/gameday/gameday_screen.dart';
-import '../features/home/pulse_screen.dart';
+import '../features/home/home_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/pipeline/pipeline_screen.dart';
 import '../features/players/player_profile_screen.dart';
 import '../features/predictions/predictions_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/settings/settings_screen.dart';
-import '../features/stats_lab/stats_lab_screen.dart';
 import '../features/teams/team_page_screen.dart';
 import '../features/vault/vault_legend_screen.dart';
 import '../features/vault/vault_screen.dart';
@@ -21,12 +20,15 @@ import 'shell.dart';
 /// Route path constants to avoid stringly-typed navigation.
 abstract final class Routes {
   static const String onboarding = '/onboarding';
-  static const String pulse = '/pulse';
+
+  // 5-tab content hub (Pass 2 IA): Home · Gameday · Vault · Preps · Profile.
+  static const String home = '/home';
   static const String gameday = '/gameday';
-  static const String stats = '/stats';
-  static const String pipeline = '/pipeline';
   static const String vault = '/vault';
+  static const String preps = '/preps';
   static const String profile = '/profile';
+
+  // Pushed / full-screen routes (above the shell).
   static const String badges = '/profile/badges';
   static const String predictions = '/predictions';
   static const String settings = '/settings';
@@ -40,12 +42,12 @@ abstract final class Routes {
 /// each tab keeps its own navigation state.
 GoRouter buildRouter(Ref ref) {
   return GoRouter(
-    initialLocation: Routes.pulse,
+    initialLocation: Routes.home,
     redirect: (BuildContext context, GoRouterState state) {
       final bool onboarded = ref.read(onboardingCompleteProvider);
       final bool atOnboarding = state.matchedLocation == Routes.onboarding;
       if (!onboarded && !atOnboarding) return Routes.onboarding;
-      if (onboarded && atOnboarding) return Routes.pulse;
+      if (onboarded && atOnboarding) return Routes.home;
       return null;
     },
     routes: <RouteBase>[
@@ -80,12 +82,13 @@ GoRouter buildRouter(Ref ref) {
         builder: (BuildContext context, GoRouterState state) =>
             const BadgesScreen(),
       ),
+      // Predictions is a pushed route, surfaced from Home + Gameday.
       GoRoute(
         path: Routes.predictions,
         builder: (BuildContext context, GoRouterState state) =>
             const PredictionsScreen(),
       ),
-      // Bottom-nav shell.
+      // Bottom-nav shell (5 branches).
       StatefulShellRoute.indexedStack(
         builder: (
           BuildContext context,
@@ -95,15 +98,17 @@ GoRouter buildRouter(Ref ref) {
           return AppShell(navigationShell: navigationShell);
         },
         branches: <StatefulShellBranch>[
+          // 0 · Home — the Bento content hub.
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(
-                path: Routes.pulse,
+                path: Routes.home,
                 builder: (BuildContext context, GoRouterState state) =>
-                    const PulseScreen(),
+                    const HomeScreen(),
               ),
             ],
           ),
+          // 1 · Gameday — matchup + Stats + Predictions (Stats folded in here).
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(
@@ -113,24 +118,7 @@ GoRouter buildRouter(Ref ref) {
               ),
             ],
           ),
-          StatefulShellBranch(
-            routes: <RouteBase>[
-              GoRoute(
-                path: Routes.stats,
-                builder: (BuildContext context, GoRouterState state) =>
-                    const StatsLabScreen(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: <RouteBase>[
-              GoRoute(
-                path: Routes.pipeline,
-                builder: (BuildContext context, GoRouterState state) =>
-                    const PipelineScreen(),
-              ),
-            ],
-          ),
+          // 2 · Vault — Kentucky history.
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(
@@ -140,6 +128,17 @@ GoRouter buildRouter(Ref ref) {
               ),
             ],
           ),
+          // 3 · Preps — Kentucky high school (the former Pipeline feature).
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
+                path: Routes.preps,
+                builder: (BuildContext context, GoRouterState state) =>
+                    const PipelineScreen(),
+              ),
+            ],
+          ),
+          // 4 · Profile.
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(

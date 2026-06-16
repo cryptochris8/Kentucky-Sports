@@ -14,17 +14,28 @@ import '../../core/widgets/widgets.dart';
 import '../shared/article_card.dart';
 import '../shared/game_widgets.dart';
 import '../shared/prediction_card.dart';
+import '../stats_lab/stats_lab_screen.dart';
 
-/// Gameday HQ — the hub for the featured matchup. Shows a pregame breakdown for
-/// the next featured game and a postgame recap for the most recent final.
-class GamedayScreen extends ConsumerWidget {
+/// Gameday HQ — the hub for the featured matchup, now with three sub-tabs
+/// (Pass 2): **Breakdown · Stats · Predictions**.
+///
+///  - Breakdown: the pregame matchup hero + keys + gameday story (and the
+///    postgame recap for the most recent final).
+///  - Stats: the former Stats Lab content (Four Factors, advanced football,
+///    compare, stat story) hosted via [StatsLabBody].
+///  - Predictions: the open picks for the featured game, surfaced here.
+class GamedayScreen extends ConsumerStatefulWidget {
   const GamedayScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final AsyncValue<Game?> featured = ref.watch(featuredGameProvider);
-    final AsyncValue<Game?> lastFinal = ref.watch(lastFinalGameProvider);
+  ConsumerState<GamedayScreen> createState() => _GamedayScreenState();
+}
 
+class _GamedayScreenState extends ConsumerState<GamedayScreen> {
+  int _tab = 0; // 0 = Breakdown, 1 = Stats, 2 = Predictions.
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gameday HQ'),
@@ -37,35 +48,80 @@ class GamedayScreen extends ConsumerWidget {
           IconButton(
             onPressed: () => context.push(Routes.settings),
             icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
           ),
         ],
       ),
-      body: featured.when(
-        loading: () => const LoadingView(label: 'Building the matchup'),
-        error: (Object e, _) => ErrorView(
-          message: '$e',
-          onRetry: () => ref.invalidate(gamesProvider),
-        ),
-        data: (Game? game) {
-          if (game == null) {
-            return _OffseasonView(lastFinal: lastFinal);
-          }
-          return RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(gamesProvider);
-              ref.invalidate(gameSummariesProvider);
-            },
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-              children: <Widget>[
-                _PregameSection(game: game),
-                const SizedBox(height: 24),
-                _PostgameSection(lastFinal: lastFinal),
+      body: Column(
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: SegmentedToggle(
+              segments: const <SegmentItem>[
+                SegmentItem(label: 'Breakdown', icon: Icons.sports_rounded),
+                SegmentItem(label: 'Stats', icon: Icons.insights_rounded),
+                SegmentItem(
+                  label: 'Predictions',
+                  icon: Icons.task_alt_rounded,
+                ),
+              ],
+              index: _tab,
+              onChanged: (int i) => setState(() => _tab = i),
+            ),
+          ),
+          Expanded(
+            child: IndexedStack(
+              index: _tab,
+              children: const <Widget>[
+                _BreakdownTab(),
+                StatsLabBody(),
+                _PredictionsTab(),
               ],
             ),
-          );
-        },
+          ),
+        ],
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Breakdown tab — pregame matchup + postgame recap.
+// ---------------------------------------------------------------------------
+
+class _BreakdownTab extends ConsumerWidget {
+  const _BreakdownTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AsyncValue<Game?> featured = ref.watch(featuredGameProvider);
+    final AsyncValue<Game?> lastFinal = ref.watch(lastFinalGameProvider);
+
+    return featured.when(
+      loading: () => const LoadingView(label: 'Building the matchup'),
+      error: (Object e, _) => ErrorView(
+        message: '$e',
+        onRetry: () => ref.invalidate(gamesProvider),
+      ),
+      data: (Game? game) {
+        if (game == null) {
+          return _OffseasonView(lastFinal: lastFinal);
+        }
+        return RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(gamesProvider);
+            ref.invalidate(gameSummariesProvider);
+          },
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+            children: <Widget>[
+              _PregameSection(game: game),
+              const SizedBox(height: 24),
+              _PostgameSection(lastFinal: lastFinal),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -127,8 +183,6 @@ class _PregameSection extends ConsumerWidget {
                 ],
                 const SizedBox(height: 12),
                 _GamedayStorySection(gameId: game.id),
-                const SizedBox(height: 12),
-                _PredictionCta(game: game),
               ],
             );
           },
@@ -468,43 +522,120 @@ class _ConcernMeter extends StatelessWidget {
   }
 }
 
-class _PredictionCta extends ConsumerWidget {
-  const _PredictionCta({required this.game});
+// ---------------------------------------------------------------------------
+// Predictions tab — open picks for the featured game (+ link to the center).
+// ---------------------------------------------------------------------------
 
-  final Game game;
+class _PredictionsTab extends ConsumerWidget {
+  const _PredictionsTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final AsyncValue<List<Prediction>> preds =
-        ref.watch(predictionsProvider);
-    return preds.maybeWhen(
+    final AsyncValue<Game?> featured = ref.watch(featuredGameProvider);
+    final AsyncValue<List<Prediction>> preds = ref.watch(predictionsProvider);
+    final TextTheme text = Theme.of(context).textTheme;
+
+    return preds.when(
+      loading: () => const LoadingView(label: 'Loading predictions'),
+      error: (Object e, _) => ErrorView(message: '$e'),
       data: (List<Prediction> all) {
-        final List<Prediction> forGame = all
-            .where((Prediction p) => p.gameId == game.id && p.isOpen)
-            .toList();
-        if (forGame.isEmpty) return const SizedBox.shrink();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        final Game? game = featured.maybeWhen(
+          data: (Game? g) => g,
+          orElse: () => null,
+        );
+        final List<Prediction> openForGame = game == null
+            ? <Prediction>[]
+            : all
+                .where((Prediction p) => p.gameId == game.id && p.isOpen)
+                .toList();
+        final List<Prediction> scoredForGame = game == null
+            ? <Prediction>[]
+            : all
+                .where((Prediction p) => p.gameId == game.id && p.isScored)
+                .toList();
+
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: <Widget>[
             const SectionHeader(
               title: 'Make Your Picks',
               eyebrow: 'Free-to-play predictions',
-              padding: EdgeInsets.only(top: 4, bottom: 10),
+              padding: EdgeInsets.only(bottom: 10),
             ),
-            for (final Prediction p in forGame)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: PredictionCard(prediction: p),
+            if (openForGame.isEmpty)
+              const BgCard(
+                child: EmptyView(
+                  title: 'No open picks for this matchup',
+                  subtitle: 'New picks open before each Kentucky game.',
+                  icon: Icons.task_alt_rounded,
+                ),
+              )
+            else
+              for (final Prediction p in openForGame)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: PredictionCard(prediction: p),
+                ),
+            const SizedBox(height: 8),
+            BgCard(
+              gradient: const LinearGradient(
+                colors: <Color>[BgColors.blueMid, BgColors.deepBlue],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
               ),
+              onTap: () => context.push(Routes.predictions),
+              child: Row(
+                children: <Widget>[
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.leaderboard_rounded,
+                        color: BgColors.goldBright),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          'PREDICTION CENTER',
+                          style: BgTypography.eyebrow(BgColors.goldBright),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'All open picks, results & the season leaderboard',
+                          style: text.titleMedium?.copyWith(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: Colors.white),
+                ],
+              ),
+            ),
+            if (scoredForGame.isNotEmpty) ...<Widget>[
+              const SizedBox(height: 16),
+              const SectionHeader(
+                title: 'Results',
+                eyebrow: 'How this matchup scored',
+                padding: EdgeInsets.only(bottom: 10),
+              ),
+              _PredictionResults(game: game!),
+            ],
           ],
         );
       },
-      orElse: () => const SizedBox.shrink(),
     );
   }
 }
 
-// --- Postgame ---------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Postgame.
+// ---------------------------------------------------------------------------
 
 class _PostgameSection extends ConsumerWidget {
   const _PostgameSection({required this.lastFinal});
@@ -626,58 +757,62 @@ class _PredictionResults extends ConsumerWidget {
                   final PredictionOption? correct =
                       p.optionById(p.correctOptionId);
                   final bool gotIt = mine?.isCorrect ?? false;
-                  return BgCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: Text(p.question, style: text.titleMedium),
-                            ),
-                            if (mine != null)
-                              Pill(
-                                label: gotIt
-                                    ? '+${mine.pointsAwarded} XP'
-                                    : 'Missed',
-                                color: gotIt
-                                    ? BgColors.positive
-                                    : BgColors.negative,
-                                icon: gotIt
-                                    ? Icons.check_circle_rounded
-                                    : Icons.cancel_rounded,
-                                dense: true,
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: <Widget>[
-                            const Icon(Icons.flag_rounded,
-                                size: 15, color: BgColors.positive),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Correct answer: ${correct?.label ?? '—'}',
-                              style: text.bodyMedium,
-                            ),
-                          ],
-                        ),
-                        if (mine != null) ...<Widget>[
-                          const SizedBox(height: 4),
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: BgCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
                           Row(
                             children: <Widget>[
-                              const Icon(Icons.person_rounded,
-                                  size: 15, color: BgColors.slate),
+                              Expanded(
+                                child:
+                                    Text(p.question, style: text.titleMedium),
+                              ),
+                              if (mine != null)
+                                Pill(
+                                  label: gotIt
+                                      ? '+${mine.pointsAwarded} XP'
+                                      : 'Missed',
+                                  color: gotIt
+                                      ? BgColors.positive
+                                      : BgColors.negative,
+                                  icon: gotIt
+                                      ? Icons.check_circle_rounded
+                                      : Icons.cancel_rounded,
+                                  dense: true,
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: <Widget>[
+                              const Icon(Icons.flag_rounded,
+                                  size: 15, color: BgColors.positive),
                               const SizedBox(width: 6),
                               Text(
-                                'Your pick: '
-                                '${p.optionById(mine.selectedOptionId)?.label ?? '—'}',
-                                style: text.bodySmall,
+                                'Correct answer: ${correct?.label ?? '—'}',
+                                style: text.bodyMedium,
                               ),
                             ],
                           ),
+                          if (mine != null) ...<Widget>[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: <Widget>[
+                                const Icon(Icons.person_rounded,
+                                    size: 15, color: BgColors.slate),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Your pick: '
+                                  '${p.optionById(mine.selectedOptionId)?.label ?? '—'}',
+                                  style: text.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   );
                 },

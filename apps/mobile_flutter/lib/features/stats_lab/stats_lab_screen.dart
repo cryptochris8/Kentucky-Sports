@@ -10,40 +10,68 @@ import '../../core/providers/data_providers.dart';
 import '../../core/widgets/widgets.dart';
 import '../shared/article_card.dart';
 
-/// Stats Lab — the analytics hub. Football and basketball sub-tabs each show a
-/// Kentucky-vs-opponent compare, Four Factors / advanced cards, and explainers.
-class StatsLabScreen extends ConsumerWidget {
-  const StatsLabScreen({super.key});
+/// Stats Lab content — the analytics surface. As of Pass 2 this is no longer a
+/// top-level tab; its bodies ([BasketballLab] / [FootballLab]) are hosted inside
+/// the Gameday hub's "Stats" sub-tab via [StatsLabBody]. The widgets below are
+/// reused verbatim — only the standalone [Scaffold]/[AppBar] role was removed.
+///
+/// Each sport view shows a Kentucky-vs-opponent compare, Four Factors /
+/// advanced cards, and explainers. All stat surfaces keep their
+/// source/confidence attribution rows (hard rule).
+
+/// The combined Stats Lab body: a Basketball / Football toggle over the two lab
+/// views. Designed to be embedded (no Scaffold/AppBar of its own).
+class StatsLabBody extends StatefulWidget {
+  const StatsLabBody({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Stats Lab'),
-          bottom: const TabBar(
-            tabs: <Widget>[
-              Tab(text: 'Basketball', icon: Icon(Icons.sports_basketball_rounded)),
-              Tab(text: 'Football', icon: Icon(Icons.sports_football_rounded)),
+  State<StatsLabBody> createState() => _StatsLabBodyState();
+}
+
+class _StatsLabBodyState extends State<StatsLabBody> {
+  // 0 = Basketball, 1 = Football.
+  int _index = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: SegmentedToggle(
+            segments: const <SegmentItem>[
+              SegmentItem(
+                label: 'Basketball',
+                icon: Icons.sports_basketball_rounded,
+              ),
+              SegmentItem(
+                label: 'Football',
+                icon: Icons.sports_football_rounded,
+              ),
+            ],
+            index: _index,
+            onChanged: (int i) => setState(() => _index = i),
+          ),
+        ),
+        Expanded(
+          child: IndexedStack(
+            index: _index,
+            children: const <Widget>[
+              BasketballLab(),
+              FootballLab(),
             ],
           ),
         ),
-        body: const TabBarView(
-          children: <Widget>[
-            _BasketballLab(),
-            _FootballLab(),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }
 
 // --- Basketball -------------------------------------------------------------
 
-class _BasketballLab extends ConsumerWidget {
-  const _BasketballLab();
+/// The basketball analytics view (compare + Four Factors + advanced profile).
+class BasketballLab extends ConsumerWidget {
+  const BasketballLab({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -68,7 +96,7 @@ class _BasketballLab extends ConsumerWidget {
         );
 
         return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: <Widget>[
             if (summary != null) ...<Widget>[
               const SectionHeader(
@@ -255,8 +283,9 @@ class _AdvancedBasketball extends StatelessWidget {
 
 // --- Football ---------------------------------------------------------------
 
-class _FootballLab extends ConsumerWidget {
-  const _FootballLab();
+/// The football analytics view (compare + advanced metrics).
+class FootballLab extends ConsumerWidget {
+  const FootballLab({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -281,7 +310,7 @@ class _FootballLab extends ConsumerWidget {
         );
 
         return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: <Widget>[
             if (summary != null) ...<Widget>[
               const SectionHeader(
@@ -419,7 +448,7 @@ class _CompareCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Stat story widgets (article pull for Stats Lab tabs)
+// Stat story widgets (article pull for Stats Lab views)
 // ---------------------------------------------------------------------------
 
 /// Shows the Stat Story tile for the featured football game article, if any.

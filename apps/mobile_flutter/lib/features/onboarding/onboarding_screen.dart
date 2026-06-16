@@ -106,7 +106,7 @@ class OnboardingScreen extends ConsumerWidget {
                                   ref
                                       .read(onboardingCompleteProvider.notifier)
                                       .complete();
-                                  context.go(Routes.pulse);
+                                  context.go(Routes.home);
                                 },
                           child: const Text('Continue as guest'),
                         ),

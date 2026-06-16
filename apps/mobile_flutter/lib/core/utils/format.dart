@@ -6,10 +6,15 @@ abstract final class Fmt {
   static final DateFormat _dayMonthYear = DateFormat('MMM d, yyyy');
   static final DateFormat _time = DateFormat('h:mm a');
   static final DateFormat _shortDay = DateFormat('MMM d');
+  static final DateFormat _weekday = DateFormat('EEEE');
 
   /// "Sat, Sep 5" style.
   static String dayMonth(DateTime? d) =>
       d == null ? 'TBD' : _dayMonth.format(d.toLocal());
+
+  /// Full weekday name, e.g. "Saturday".
+  static String weekday(DateTime? d) =>
+      d == null ? 'soon' : _weekday.format(d.toLocal());
 
   /// "Sep 5, 2026" style.
   static String dayMonthYear(DateTime? d) =>

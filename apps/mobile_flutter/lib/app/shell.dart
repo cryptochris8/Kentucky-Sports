@@ -3,11 +3,13 @@ import 'package:go_router/go_router.dart';
 
 import '../core/widgets/glass_nav_bar.dart';
 
-/// The bottom-navigation shell hosting the six primary tabs:
-/// Pulse · Gameday · Stats · Pipeline · Vault · Profile.
+/// The bottom-navigation shell hosting the five primary tabs (Pass 2 IA):
+/// Home · Gameday · Vault · Preps · Profile.
 ///
-/// Renders the reusable [GlassNavBar] (Pass 1) over the branch content. The tab
-/// list itself is unchanged this pass.
+/// Stats Lab is no longer a top-level tab — its content now lives inside the
+/// Gameday hub (Breakdown · Stats · Predictions). Predictions is reachable from
+/// Home and Gameday rather than from the bar. Renders the reusable [GlassNavBar]
+/// (Pass 1) over the active branch.
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.navigationShell});
 
@@ -16,9 +18,9 @@ class AppShell extends StatelessWidget {
   static const List<GlassNavDestination> _destinations =
       <GlassNavDestination>[
     GlassNavDestination(
-      label: 'Pulse',
-      icon: Icons.bolt_outlined,
-      selectedIcon: Icons.bolt_rounded,
+      label: 'Home',
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home_rounded,
     ),
     GlassNavDestination(
       label: 'Gameday',
@@ -26,19 +28,14 @@ class AppShell extends StatelessWidget {
       selectedIcon: Icons.stadium_rounded,
     ),
     GlassNavDestination(
-      label: 'Stats',
-      icon: Icons.insights_outlined,
-      selectedIcon: Icons.insights_rounded,
-    ),
-    GlassNavDestination(
-      label: 'Pipeline',
-      icon: Icons.account_tree_outlined,
-      selectedIcon: Icons.account_tree_rounded,
-    ),
-    GlassNavDestination(
       label: 'Vault',
       icon: Icons.lock_open_outlined,
       selectedIcon: Icons.lock_open_rounded,
+    ),
+    GlassNavDestination(
+      label: 'Preps',
+      icon: Icons.school_outlined,
+      selectedIcon: Icons.school_rounded,
     ),
     GlassNavDestination(
       label: 'Profile',
