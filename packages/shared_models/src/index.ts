@@ -527,3 +527,91 @@ export interface ModerationAction {
   reason: string;
   createdAt: FirestoreTimestamp;
 }
+
+// ───────────────────────────────────────────────
+// Articles (AI-generated journalistic content)
+// ───────────────────────────────────────────────
+
+/** The type of article produced by the generator */
+export type ArticleType = 'preview' | 'recap' | 'stat_story';
+
+/** Status of a generated article document */
+export type ArticleStatus = 'draft' | 'published' | 'hidden';
+
+/**
+ * A section with a title and a prose narrative (used for tacticalBreakdown, theVerdict summary,
+ * and other narrative blocks).
+ */
+export interface ArticleNarrativeSection {
+  title: string;
+  narrative: string;
+}
+
+/**
+ * A section with a title and a list of bullet-point strings (used for byTheNumbers).
+ */
+export interface ArticleListSection {
+  title: string;
+  items: string[];
+}
+
+/**
+ * Player spotlight block inside an article.
+ * playerId and teamId are provenance fields stamped by the generator (not by the LLM).
+ */
+export interface PlayerSpotlight {
+  playerId: string;
+  name: string;
+  teamId?: string;
+  position: string;
+  narrative: string;
+  statline: string;
+}
+
+/**
+ * Verdict / prediction block. For recap articles use `result` instead of `prediction`.
+ * confidence is 0-100 (not betting odds; fan-confidence language).
+ */
+export interface Verdict {
+  title: string;
+  /** Human-readable prediction string (preview) or final result (recap) */
+  prediction?: string;
+  result?: string;
+  /** 0-100 fan confidence score (only meaningful for previews) */
+  confidence?: number;
+  narrative: string;
+}
+
+/**
+ * Canonical Firestore document shape for articles/{articleId}.
+ * Provenance fields (gameId, sport, status, model, generatedAt, publishedAt, sources,
+ * confidence) are stamped by the generator pipeline — the LLM only writes editorial fields.
+ */
+export interface Article {
+  id?: string;
+
+  // ── Editorial (written by Claude or the seed template) ────────────────────
+  type: ArticleType;
+  headline: string;
+  subheadline: string;
+  openingNarrative: string;
+  tacticalBreakdown?: ArticleNarrativeSection;
+  byTheNumbers: ArticleListSection;
+  playerSpotlights: PlayerSpotlight[];
+  theVerdict: Verdict;
+  closingLine: string;
+
+  // ── Provenance (stamped by the pipeline, not the LLM) ────────────────────
+  gameId: string;
+  sport: Sport;
+  status: ArticleStatus;
+  /** Which stored docs fed the model, e.g. "seed_demo:team_stats/kentucky_football_2025_season" */
+  sources: string[];
+  /** Model ID used for generation, or "seed_template" for the no-key offline fallback */
+  model: string;
+  generatedAt: FirestoreTimestamp;
+  publishedAt: FirestoreTimestamp;
+  /** "demo" | "official" | confidence level descriptor */
+  confidence: string;
+  featured?: boolean;
+}

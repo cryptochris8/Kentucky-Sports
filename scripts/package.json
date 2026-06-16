@@ -3,12 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Dev scripts for Bluegrass Gameday (seed loader, future CSV importers).",
+  "description": "Dev scripts for Bluegrass Gameday (seed loader, article generator).",
   "scripts": {
-    "seed": "tsx seed_firestore.ts"
+    "seed": "tsx seed_firestore.ts",
+    "generate": "tsx generate_articles.ts"
   },
   "dependencies": {
-    "firebase-admin": "^12.7.0"
+    "@anthropic-ai/sdk": "^0.52.0",
+    "firebase-admin": "^12.7.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "tsx": "^4.19.2",

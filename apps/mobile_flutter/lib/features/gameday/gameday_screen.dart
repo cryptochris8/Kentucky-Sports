@@ -11,6 +11,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/providers/data_providers.dart';
 import '../../core/utils/format.dart';
 import '../../core/widgets/widgets.dart';
+import '../shared/article_card.dart';
 import '../shared/game_widgets.dart';
 import '../shared/prediction_card.dart';
 
@@ -124,6 +125,8 @@ class _PregameSection extends ConsumerWidget {
                   const SizedBox(height: 12),
                   _ConcernMeter(summary: s),
                 ],
+                const SizedBox(height: 12),
+                _GamedayStorySection(gameId: game.id),
                 const SizedBox(height: 12),
                 _PredictionCta(game: game),
               ],
@@ -530,6 +533,8 @@ class _PostgameSection extends ConsumerWidget {
             const SizedBox(height: 12),
             _PostgameResult(game: game),
             const SizedBox(height: 12),
+            _GamedayStorySection(gameId: game.id),
+            const SizedBox(height: 12),
             _PredictionResults(game: game),
           ],
         );
@@ -677,6 +682,43 @@ class _PredictionResults extends ConsumerWidget {
                   );
                 },
               ),
+          ],
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Gameday Story (article card inline in the screen)
+// ---------------------------------------------------------------------------
+
+class _GamedayStorySection extends ConsumerWidget {
+  const _GamedayStorySection({required this.gameId});
+
+  final String gameId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AsyncValue<Article?> articleAsync =
+        ref.watch(articleForGameProvider(gameId));
+
+    return articleAsync.maybeWhen(
+      data: (Article? article) {
+        if (article == null) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            SectionHeader(
+              title: article.isRecap ? 'Game Recap' : 'Gameday Story',
+              eyebrow: article.isRecap
+                  ? 'AI-written recap'
+                  : 'AI-written preview',
+              icon: Icons.article_rounded,
+              padding: const EdgeInsets.only(bottom: 10),
+            ),
+            GamedayStoryCard(article: article),
           ],
         );
       },

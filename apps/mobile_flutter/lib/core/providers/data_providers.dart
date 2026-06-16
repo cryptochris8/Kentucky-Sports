@@ -89,3 +89,7 @@ final highSchoolGamesProvider =
 final recruitsProvider = FutureProvider<List<Recruit>>((Ref ref) {
   return ref.watch(dataSourceProvider).recruits();
 });
+
+final articlesProvider = FutureProvider<List<Article>>((Ref ref) {
+  return ref.watch(dataSourceProvider).articles();
+});

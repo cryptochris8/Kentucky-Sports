@@ -52,4 +52,5 @@ functions/lib/
 
 # ---- Misc ----
 extracted/
+seed_data/generated/
 *.log

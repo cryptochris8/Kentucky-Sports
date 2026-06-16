@@ -229,12 +229,12 @@ export function PredictionsPage() {
             </div>
 
             <FormField label="Game ID" htmlFor="pred-gameId"
-              note="Enter the Firestore game document ID, e.g. fb_2026_open_toledo">
+              note="Enter the Firestore game document ID, e.g. fb_2026_youngstown">
               <Input
                 id="pred-gameId"
                 value={form.gameId}
                 onChange={(e) => setForm((f) => ({ ...f, gameId: e.target.value }))}
-                placeholder="fb_2026_open_toledo"
+                placeholder="fb_2026_youngstown"
               />
             </FormField>
 

@@ -31,7 +31,7 @@ service cloud.firestore {
     function isPublicReference(col) {
       return col in [
         'teams', 'seasons', 'games', 'game_summaries', 'team_stats',
-        'player_profiles', 'player_stats', 'badges', 'news_cards',
+        'player_profiles', 'player_stats', 'badges', 'news_cards', 'articles',
         'high_schools', 'high_school_games', 'recruits', 'app_config', 'venues'
       ];
     }
@@ -61,7 +61,7 @@ service cloud.firestore {
       allow read: if isPublicReference(col);
       // CMS content (games, news, etc.) editable by editors/admins from the portal.
       allow create, update, delete: if isEditor()
-        && col in ['teams','seasons','games','game_summaries','news_cards',
+        && col in ['teams','seasons','games','game_summaries','news_cards','articles',
                    'high_schools','high_school_games','recruits','app_config'];
       // Stat & summary imports are Functions-only.
       allow write: if false

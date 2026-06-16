@@ -26,4 +26,5 @@ abstract interface class AppDataSource {
   Future<List<HighSchool>> highSchools();
   Future<List<HighSchoolGame>> highSchoolGames();
   Future<List<Recruit>> recruits();
+  Future<List<Article>> articles();
 }

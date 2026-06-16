@@ -876,6 +876,198 @@ class HighSchoolGame {
 }
 
 // ---------------------------------------------------------------------------
+// Articles (AI-generated journalistic content)
+// ---------------------------------------------------------------------------
+
+/// A single narrative section with a title and body copy (e.g. tactical
+/// breakdown, key moment, etc.).
+class ArticleNarrativeSection {
+  const ArticleNarrativeSection({required this.title, required this.narrative});
+
+  final String title;
+  final String narrative;
+
+  factory ArticleNarrativeSection.fromJson(Map<String, dynamic> j) =>
+      ArticleNarrativeSection(
+        title: j['title']?.toString() ?? '',
+        narrative: j['narrative']?.toString() ?? '',
+      );
+}
+
+/// A bullet-list section with a title and items (e.g. "By the Numbers").
+class ArticleListSection {
+  const ArticleListSection({required this.title, required this.items});
+
+  final String title;
+  final List<String> items;
+
+  factory ArticleListSection.fromJson(Map<String, dynamic> j) =>
+      ArticleListSection(
+        title: j['title']?.toString() ?? '',
+        items: _toStringList(j['items']),
+      );
+}
+
+/// A player spotlight inside an article.
+class ArticlePlayerSpotlight {
+  const ArticlePlayerSpotlight({
+    required this.playerId,
+    required this.name,
+    required this.position,
+    required this.narrative,
+    required this.statline,
+  });
+
+  final String? playerId;
+  final String name;
+  final String? position;
+  final String narrative;
+  final String? statline;
+
+  factory ArticlePlayerSpotlight.fromJson(Map<String, dynamic> j) =>
+      ArticlePlayerSpotlight(
+        playerId: j['playerId']?.toString(),
+        name: j['name']?.toString() ?? 'Player',
+        position: j['position']?.toString(),
+        narrative: j['narrative']?.toString() ?? '',
+        statline: j['statline']?.toString(),
+      );
+}
+
+/// The closing verdict of an article (preview has prediction; recap has result).
+class ArticleVerdict {
+  const ArticleVerdict({
+    required this.title,
+    required this.prediction,
+    required this.result,
+    required this.confidence,
+    required this.narrative,
+  });
+
+  final String title;
+
+  /// Set on preview articles.
+  final String? prediction;
+
+  /// Set on recap articles.
+  final String? result;
+
+  /// 0-100 confidence value (optional — preview typically has it, recap may not).
+  final int? confidence;
+
+  final String narrative;
+
+  factory ArticleVerdict.fromJson(Map<String, dynamic> j) => ArticleVerdict(
+    title: j['title']?.toString() ?? 'The Verdict',
+    prediction: j['prediction']?.toString(),
+    result: j['result']?.toString(),
+    confidence: _toInt(j['confidence']),
+    narrative: j['narrative']?.toString() ?? '',
+  );
+}
+
+/// An AI-generated journalistic article (preview, recap, or stat story).
+///
+/// Mirrors the `articles` collection shape in docs/14_DATA_PERSISTENCE_AND_ARTICLES.md.
+/// All fields beyond the required set are nullable so preview and recap docs
+/// both parse cleanly (recap omits `tacticalBreakdown` and `theVerdict.prediction`).
+class Article {
+  const Article({
+    required this.id,
+    required this.type,
+    required this.gameId,
+    required this.sport,
+    required this.status,
+    required this.headline,
+    required this.subheadline,
+    required this.openingNarrative,
+    required this.tacticalBreakdown,
+    required this.byTheNumbers,
+    required this.playerSpotlights,
+    required this.theVerdict,
+    required this.closingLine,
+    required this.sources,
+    required this.model,
+    required this.generatedAt,
+    required this.publishedAt,
+    required this.confidence,
+    required this.featured,
+  });
+
+  /// "preview" | "recap" | "stat_story"
+  final String type;
+  final String id;
+  final String gameId;
+  final String sport;
+
+  /// "draft" | "published" | "hidden"
+  final String status;
+
+  final String headline;
+  final String subheadline;
+  final String openingNarrative;
+
+  /// Optional — present on preview, absent on recap.
+  final ArticleNarrativeSection? tacticalBreakdown;
+
+  final ArticleListSection? byTheNumbers;
+  final List<ArticlePlayerSpotlight> playerSpotlights;
+  final ArticleVerdict? theVerdict;
+  final String closingLine;
+  final List<String> sources;
+
+  /// "claude-opus-4-8", "seed_template", etc.
+  final String model;
+
+  final DateTime? generatedAt;
+  final DateTime? publishedAt;
+  final String confidence;
+  final bool featured;
+
+  bool get isPublished => status == 'published';
+  bool get isPreview => type == 'preview';
+  bool get isRecap => type == 'recap';
+
+  factory Article.fromJson(Map<String, dynamic> j) {
+    final dynamic tb = j['tacticalBreakdown'];
+    final dynamic btn = j['byTheNumbers'];
+    final dynamic tv = j['theVerdict'];
+
+    return Article(
+      id: j['id']?.toString() ?? '',
+      type: j['type']?.toString() ?? 'preview',
+      gameId: j['gameId']?.toString() ?? '',
+      sport: j['sport']?.toString() ?? 'football',
+      status: j['status']?.toString() ?? 'published',
+      headline: j['headline']?.toString() ?? '',
+      subheadline: j['subheadline']?.toString() ?? '',
+      openingNarrative: j['openingNarrative']?.toString() ?? '',
+      tacticalBreakdown: tb is Map<String, dynamic>
+          ? ArticleNarrativeSection.fromJson(tb)
+          : null,
+      byTheNumbers: btn is Map<String, dynamic>
+          ? ArticleListSection.fromJson(btn)
+          : null,
+      playerSpotlights: ((j['playerSpotlights'] as List<dynamic>?) ??
+              <dynamic>[])
+          .whereType<Map<String, dynamic>>()
+          .map(ArticlePlayerSpotlight.fromJson)
+          .toList(),
+      theVerdict: tv is Map<String, dynamic>
+          ? ArticleVerdict.fromJson(tv)
+          : null,
+      closingLine: j['closingLine']?.toString() ?? '',
+      sources: _toStringList(j['sources']),
+      model: j['model']?.toString() ?? 'seed_template',
+      generatedAt: _toDate(j['generatedAt']),
+      publishedAt: _toDate(j['publishedAt']),
+      confidence: j['confidence']?.toString() ?? 'demo',
+      featured: j['featured'] == true,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Recruits
 // ---------------------------------------------------------------------------
 

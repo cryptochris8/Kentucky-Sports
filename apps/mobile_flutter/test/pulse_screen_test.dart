@@ -27,9 +27,9 @@ class _FakeDataSource implements AppDataSource {
           'season': 2099,
           'sport': 'football',
           'homeTeamId': 'kentucky_football',
-          'awayTeamId': 'opp_toledo',
-          'opponentName': 'Toledo',
-          'opponentShort': 'TOL',
+          'awayTeamId': 'opp_youngstown_state',
+          'opponentName': 'Youngstown State',
+          'opponentShort': 'YSU',
           // Far-future so it is unambiguously the "next" game.
           'startTime': '2099-09-05T19:00:00-04:00',
           'venue': 'Kroger Field',
@@ -79,6 +79,9 @@ class _FakeDataSource implements AppDataSource {
   Future<List<HighSchoolGame>> highSchoolGames() async => <HighSchoolGame>[];
   @override
   Future<List<Recruit>> recruits() async => <Recruit>[];
+
+  @override
+  Future<List<Article>> articles() async => <Article>[];
 }
 
 void main() {
@@ -105,6 +108,6 @@ void main() {
 
     // The matchup hero shows Kentucky vs the opponent.
     expect(find.text('Kentucky'), findsWidgets);
-    expect(find.text('Toledo'), findsWidgets);
+    expect(find.text('Youngstown State'), findsWidgets);
   });
 }

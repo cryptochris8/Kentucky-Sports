@@ -5,8 +5,10 @@ import 'package:stats_engine/stats_engine.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/typography.dart';
 import '../../core/models/models.dart';
+import '../../core/providers/app_providers.dart';
 import '../../core/providers/data_providers.dart';
 import '../../core/widgets/widgets.dart';
+import '../shared/article_card.dart';
 
 /// Stats Lab — the analytics hub. Football and basketball sub-tabs each show a
 /// Kentucky-vs-opponent compare, Four Factors / advanced cards, and explainers.
@@ -77,6 +79,7 @@ class _BasketballLab extends ConsumerWidget {
               _CompareCard(summary: summary, sport: 'mens_basketball'),
               const SizedBox(height: 8),
             ],
+            _BasketballStatStory(),
             const SectionHeader(
               title: 'The Four Factors',
               eyebrow: 'What wins basketball games',
@@ -289,6 +292,7 @@ class _FootballLab extends ConsumerWidget {
               _CompareCard(summary: summary, sport: 'football'),
               const SizedBox(height: 8),
             ],
+            _FootballStatStory(),
             const SectionHeader(
               title: 'Advanced Metrics',
               eyebrow: 'Beyond the box score',
@@ -410,6 +414,61 @@ class _CompareCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Stat story widgets (article pull for Stats Lab tabs)
+// ---------------------------------------------------------------------------
+
+/// Shows the Stat Story tile for the featured football game article, if any.
+class _FootballStatStory extends ConsumerWidget {
+  const _FootballStatStory();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Use the featured preview article (which is for the football opener).
+    final AsyncValue<Article?> articleAsync =
+        ref.watch(featuredPreviewArticleProvider);
+    return articleAsync.maybeWhen(
+      data: (Article? a) {
+        if (a == null || a.sport != 'football') return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: StatStoryTile(article: a),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
+    );
+  }
+}
+
+/// Shows the Stat Story tile for the most recent basketball article, if any.
+class _BasketballStatStory extends ConsumerWidget {
+  const _BasketballStatStory();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Look through all published articles for a basketball one.
+    final AsyncValue<List<Article>> articlesAsync =
+        ref.watch(publishedArticlesProvider);
+    return articlesAsync.maybeWhen(
+      data: (List<Article> all) {
+        Article? bball;
+        for (final Article a in all) {
+          if (a.sport == 'mens_basketball') {
+            bball = a;
+            break;
+          }
+        }
+        if (bball == null) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: StatStoryTile(article: bball),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
     );
   }
 }

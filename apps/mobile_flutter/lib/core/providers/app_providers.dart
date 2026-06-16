@@ -215,6 +215,46 @@ final myEarnedBadgeIdsProvider = FutureProvider<Set<String>>((Ref ref) async {
       .toSet();
 });
 
+// --- Articles ---------------------------------------------------------------
+
+/// All published articles, sorted by publishedAt descending.
+final publishedArticlesProvider =
+    FutureProvider<List<Article>>((Ref ref) async {
+  final List<Article> all = await ref.watch(articlesProvider.future);
+  final List<Article> published =
+      all.where((Article a) => a.isPublished).toList()
+        ..sort((Article a, Article b) =>
+            (b.publishedAt ?? DateTime(0))
+                .compareTo(a.publishedAt ?? DateTime(0)));
+  return published;
+});
+
+/// The article (preview or recap) for a specific gameId, or null.
+final articleForGameProvider =
+    FutureProvider.family<Article?, String>((Ref ref, String gameId) async {
+  final List<Article> all = await ref.watch(articlesProvider.future);
+  for (final Article a in all) {
+    if (a.gameId == gameId && a.isPublished) return a;
+  }
+  return null;
+});
+
+/// The featured preview article (for the featured upcoming game's pregame read).
+final featuredPreviewArticleProvider =
+    FutureProvider<Article?>((Ref ref) async {
+  final Game? game = await ref.watch(featuredGameProvider.future);
+  if (game == null) return null;
+  return ref.watch(articleForGameProvider(game.id).future);
+});
+
+/// The recap article for the most recent final game.
+final lastFinalRecapArticleProvider =
+    FutureProvider<Article?>((Ref ref) async {
+  final Game? game = await ref.watch(lastFinalGameProvider.future);
+  if (game == null) return null;
+  return ref.watch(articleForGameProvider(game.id).future);
+});
+
 // --- High schools -----------------------------------------------------------
 
 /// High school games joined with their school name, sorted by date.

@@ -82,4 +82,7 @@ class FirestoreDataSource implements AppDataSource {
 
   @override
   Future<List<Recruit>> recruits() => _notWired('recruits');
+
+  @override
+  Future<List<Article>> articles() => _notWired('articles');
 }

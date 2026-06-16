@@ -90,4 +90,7 @@ class MockDataSource implements AppDataSource {
 
   @override
   Future<List<Recruit>> recruits() => _list('recruits', Recruit.fromJson);
+
+  @override
+  Future<List<Article>> articles() => _list('articles', Article.fromJson);
 }
