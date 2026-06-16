@@ -30,12 +30,12 @@ class SectionHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
           Container(
-            width: 4,
-            height: 22,
+            width: 3,
+            height: 24,
             margin: const EdgeInsets.only(right: 10),
             decoration: BoxDecoration(
-              gradient: BgColors.goldGradient,
-              borderRadius: BorderRadius.circular(4),
+              gradient: BgColors.goldRule,
+              borderRadius: BorderRadius.circular(3),
             ),
           ),
           Expanded(
@@ -45,12 +45,12 @@ class SectionHeader extends StatelessWidget {
                 if (eyebrow != null)
                   Text(
                     eyebrow!.toUpperCase(),
-                    style: BgTypography.eyebrow(BgColors.bluegrassGold),
+                    style: BgTypography.eyebrow(BgColors.accentGold),
                   ),
                 Row(
                   children: <Widget>[
                     if (icon != null) ...<Widget>[
-                      Icon(icon, size: 18, color: BgColors.deepBlue),
+                      Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
                       const SizedBox(width: 6),
                     ],
                     Flexible(

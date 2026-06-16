@@ -4,6 +4,7 @@ library;
 export 'bg_card.dart';
 export 'brand_mark.dart';
 export 'confidence_label.dart';
+export 'glass_nav_bar.dart';
 export 'percentile_bar.dart';
 export 'section_header.dart';
 export 'stat_card.dart';

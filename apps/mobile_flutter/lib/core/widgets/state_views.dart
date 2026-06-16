@@ -97,7 +97,7 @@ class EmptyView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(icon, color: BgColors.mist, size: 40),
+            Icon(icon, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 40),
             const SizedBox(height: 12),
             Text(
               title,
@@ -138,7 +138,7 @@ class SkeletonBox extends StatelessWidget {
       height: height,
       width: width,
       decoration: BoxDecoration(
-        color: BgColors.hairline,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(radius),
       ),
     );

@@ -21,10 +21,11 @@ class SourceConfidenceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Color muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return DefaultTextStyle(
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 10.5,
-        color: BgColors.mist,
+        color: muted,
         fontWeight: FontWeight.w600,
       ),
       child: Wrap(
@@ -32,20 +33,21 @@ class SourceConfidenceRow extends StatelessWidget {
         runSpacing: 4,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: <Widget>[
-          _chip(Icons.source_rounded, 'Source: $source'),
+          _chip(Icons.source_rounded, 'Source: $source', muted),
           if (updatedAt != null)
-            _chip(Icons.update_rounded, 'Updated ${Fmt.shortDay(updatedAt)}'),
+            _chip(Icons.update_rounded, 'Updated ${Fmt.shortDay(updatedAt)}',
+                muted),
           ConfidenceLabel(confidence: confidence),
         ],
       ),
     );
   }
 
-  Widget _chip(IconData icon, String text) {
+  Widget _chip(IconData icon, String text, Color muted) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Icon(icon, size: 12, color: BgColors.mist),
+        Icon(icon, size: 12, color: muted),
         const SizedBox(width: 3),
         Text(text),
       ],

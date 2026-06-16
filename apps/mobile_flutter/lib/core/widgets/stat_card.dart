@@ -27,7 +27,7 @@ class StatCard extends StatefulWidget {
     this.rankText,
     this.trend,
     this.trendGoodWhenUp = true,
-    this.accent = BgColors.deepBlue,
+    this.accent = BgColors.primary,
   });
 
   /// Broadcast-style short label, e.g. "Shot Quality".
@@ -68,7 +68,7 @@ class StatCard extends StatefulWidget {
     int? percentile,
     String? rankText,
     TrendDirection? trend,
-    Color accent = BgColors.deepBlue,
+    Color accent = BgColors.primary,
   }) {
     final MetricLabel meta = labelFor(metricKey, sport: sport);
     return StatCard(
@@ -97,8 +97,11 @@ class _StatCardState extends State<StatCard> {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final TextTheme text = theme.textTheme;
     return BgCard(
+      accentRail: widget.accent,
+      padding: const EdgeInsets.fromLTRB(18, 16, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -124,7 +127,7 @@ class _StatCardState extends State<StatCard> {
                 children: <Widget>[
                   Text(
                     widget.valueText,
-                    style: BgTypography.statNumber(widget.accent),
+                    style: BgTypography.statNumber(widget.accent, size: 32),
                   ),
                   if (widget.trend != null)
                     TrendArrow(
@@ -140,7 +143,7 @@ class _StatCardState extends State<StatCard> {
             Text(
               widget.rankText!,
               style: text.bodySmall?.copyWith(
-                color: BgColors.slate,
+                color: theme.colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -158,16 +161,16 @@ class _StatCardState extends State<StatCard> {
               padding: const EdgeInsets.symmetric(vertical: 2),
               child: Row(
                 children: <Widget>[
-                  Icon(
+                  const Icon(
                     Icons.lightbulb_outline_rounded,
                     size: 15,
-                    color: BgColors.bluegrassGold,
+                    color: BgColors.accentGold,
                   ),
                   const SizedBox(width: 5),
                   Text(
                     'What this means',
                     style: text.labelSmall?.copyWith(
-                      color: BgColors.deepBlue,
+                      color: theme.colorScheme.primary,
                       letterSpacing: 0.2,
                     ),
                   ),
@@ -177,7 +180,7 @@ class _StatCardState extends State<StatCard> {
                         ? Icons.keyboard_arrow_up_rounded
                         : Icons.keyboard_arrow_down_rounded,
                     size: 18,
-                    color: BgColors.mist,
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ],
               ),

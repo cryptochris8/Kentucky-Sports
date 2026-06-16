@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:stats_engine/stats_engine.dart';
 
 import '../../app/theme/colors.dart';
+import '../../app/theme/theme.dart';
 
 /// A horizontal percentile bar (0..100) with a tier label.
 ///
 /// Color is derived from the percentile tier so meaning is not color-only —
-/// the tier label always accompanies the bar.
-class PercentileBar extends StatelessWidget {
+/// the tier label always accompanies the bar. The fill animates in on first
+/// paint (reduce-motion aware).
+class PercentileBar extends StatefulWidget {
   const PercentileBar({
     super.key,
     required this.percentile,
@@ -19,14 +21,26 @@ class PercentileBar extends StatelessWidget {
   final bool showLabel;
   final double height;
 
+  @override
+  State<PercentileBar> createState() => _PercentileBarState();
+}
+
+class _PercentileBarState extends State<PercentileBar> {
+  double _shown = 0;
+
+  double get _target {
+    final double pct = widget.percentile.clamp(0, 100) / 100;
+    return pct == 0 ? 0.02 : pct;
+  }
+
   Color get _color {
-    switch (tierForPercentile(percentile)) {
+    switch (tierForPercentile(widget.percentile)) {
       case PercentileTier.elite:
         return BgColors.positive;
       case PercentileTier.excellent:
-        return BgColors.blueBright;
+        return BgColors.primaryBright;
       case PercentileTier.good:
-        return BgColors.deepBlue;
+        return BgColors.primary;
       case PercentileTier.average:
         return BgColors.warning;
       case PercentileTier.belowAverage:
@@ -35,13 +49,34 @@ class PercentileBar extends StatelessWidget {
   }
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _shown = _target);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant PercentileBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.percentile != widget.percentile) {
+      setState(() => _shown = _target);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final double pct = (percentile.clamp(0, 100)) / 100;
-    final PercentileTier tier = tierForPercentile(percentile);
+    final bool reduceMotion =
+        MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final PercentileTier tier = tierForPercentile(widget.percentile);
+    final Color color = _color;
+    final Color track = Theme.of(context).colorScheme.outline;
+    final double width = reduceMotion ? _target : _shown;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        if (showLabel)
+        if (widget.showLabel)
           Padding(
             padding: const EdgeInsets.only(bottom: 5),
             child: Row(
@@ -50,16 +85,16 @@ class PercentileBar extends StatelessWidget {
                 Text(
                   tier.label,
                   style: TextStyle(
-                    color: _color,
+                    color: color,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.4,
                   ),
                 ),
                 Text(
-                  '$percentile%ile',
-                  style: const TextStyle(
-                    color: BgColors.slate,
+                  '${widget.percentile}%ile',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -68,17 +103,21 @@ class PercentileBar extends StatelessWidget {
             ),
           ),
         ClipRRect(
-          borderRadius: BorderRadius.circular(height),
+          borderRadius: BorderRadius.circular(widget.height),
           child: Stack(
             children: <Widget>[
-              Container(height: height, color: BgColors.hairline),
-              FractionallySizedBox(
-                widthFactor: pct == 0 ? 0.02 : pct,
+              Container(height: widget.height, color: track),
+              AnimatedFractionallySizedBox(
+                duration:
+                    reduceMotion ? Duration.zero : BgTheme.motionEmphasized,
+                curve: BgTheme.curveEmphasized,
+                widthFactor: width,
+                alignment: Alignment.centerLeft,
                 child: Container(
-                  height: height,
+                  height: widget.height,
                   decoration: BoxDecoration(
-                    color: _color,
-                    borderRadius: BorderRadius.circular(height),
+                    color: color,
+                    borderRadius: BorderRadius.circular(widget.height),
                   ),
                 ),
               ),

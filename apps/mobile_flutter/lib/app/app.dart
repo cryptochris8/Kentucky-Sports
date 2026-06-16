@@ -20,6 +20,8 @@ class BluegrassGamedayApp extends ConsumerWidget {
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
       theme: BgTheme.light(),
+      darkTheme: BgTheme.dark(),
+      themeMode: BgTheme.themeMode,
       routerConfig: router,
     );
   }

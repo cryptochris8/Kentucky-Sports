@@ -1,22 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../app/theme/colors.dart';
+import '../core/widgets/glass_nav_bar.dart';
 
 /// The bottom-navigation shell hosting the six primary tabs:
 /// Pulse · Gameday · Stats · Pipeline · Vault · Profile.
+///
+/// Renders the reusable [GlassNavBar] (Pass 1) over the branch content. The tab
+/// list itself is unchanged this pass.
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
-  static const List<_NavDest> _destinations = <_NavDest>[
-    _NavDest('Pulse', Icons.bolt_outlined, Icons.bolt_rounded),
-    _NavDest('Gameday', Icons.stadium_outlined, Icons.stadium_rounded),
-    _NavDest('Stats', Icons.insights_outlined, Icons.insights_rounded),
-    _NavDest('Pipeline', Icons.account_tree_outlined, Icons.account_tree_rounded),
-    _NavDest('Vault', Icons.lock_open_outlined, Icons.lock_open_rounded),
-    _NavDest('Profile', Icons.person_outline_rounded, Icons.person_rounded),
+  static const List<GlassNavDestination> _destinations =
+      <GlassNavDestination>[
+    GlassNavDestination(
+      label: 'Pulse',
+      icon: Icons.bolt_outlined,
+      selectedIcon: Icons.bolt_rounded,
+    ),
+    GlassNavDestination(
+      label: 'Gameday',
+      icon: Icons.stadium_outlined,
+      selectedIcon: Icons.stadium_rounded,
+    ),
+    GlassNavDestination(
+      label: 'Stats',
+      icon: Icons.insights_outlined,
+      selectedIcon: Icons.insights_rounded,
+    ),
+    GlassNavDestination(
+      label: 'Pipeline',
+      icon: Icons.account_tree_outlined,
+      selectedIcon: Icons.account_tree_rounded,
+    ),
+    GlassNavDestination(
+      label: 'Vault',
+      icon: Icons.lock_open_outlined,
+      selectedIcon: Icons.lock_open_rounded,
+    ),
+    GlassNavDestination(
+      label: 'Profile',
+      icon: Icons.person_outline_rounded,
+      selectedIcon: Icons.person_rounded,
+    ),
   ];
 
   void _onTap(int index) {
@@ -28,32 +56,16 @@ class AppShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The floating glass bar is placed as the bottomNavigationBar so the
+    // Scaffold reserves its full height (margin included) — existing screens
+    // keep their safe bottom inset and nothing scrolls under the chrome.
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: DecoratedBox(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: BgColors.hairline)),
-        ),
-        child: NavigationBar(
-          selectedIndex: navigationShell.currentIndex,
-          onDestinationSelected: _onTap,
-          destinations: <Widget>[
-            for (final _NavDest d in _destinations)
-              NavigationDestination(
-                icon: Icon(d.icon),
-                selectedIcon: Icon(d.selectedIcon),
-                label: d.label,
-              ),
-          ],
-        ),
+      bottomNavigationBar: GlassNavBar(
+        destinations: _destinations,
+        selectedIndex: navigationShell.currentIndex,
+        onDestinationSelected: _onTap,
       ),
     );
   }
-}
-
-class _NavDest {
-  const _NavDest(this.label, this.icon, this.selectedIcon);
-  final String label;
-  final IconData icon;
-  final IconData selectedIcon;
 }
