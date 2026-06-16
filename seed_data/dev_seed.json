@@ -239,51 +239,284 @@
   "team_stats": [
     {
       "id": "kentucky_football_2025_season",
-      "teamId": "kentucky_football", "season": 2025, "sport": "football", "scope": "season",
+      "teamId": "kentucky_football",
+      "season": 2025,
+      "sport": "football",
+      "scope": "season",
       "stats": {
-        "record": "5-7", "pointsPerGame": 23.8, "pointsAllowedPerGame": 27.4,
-        "yardsPerPlay": 5.4, "passingYardsPerGame": 221.5, "rushingYardsPerGame": 148.3,
-        "thirdDownPct": 0.39, "redZoneScorePct": 0.81, "turnoverMargin": -0.2,
-        "sacksPerGame": 2.1, "explosivePlayRate": 0.11, "successRate": 0.40,
-        "ppaOffense": 0.08, "ppaDefense": 0.14
+        "record": "5-7",
+        "pointsPerGame": 23,
+        "pointsAllowedPerGame": 26.4,
+        "yardsPerPlay": 5.07,
+        "totalYardsPerGame": 341.2,
+        "passingYardsPerGame": 201.9,
+        "rushingYardsPerGame": 139.3,
+        "thirdDownPct": 0.403,
+        "turnoverMargin": -0.67,
+        "takeaways": 14,
+        "giveaways": 22,
+        "sacksPerGame": 2.08,
+        "successRate": 0.431,
+        "explosiveness": 1.139,
+        "ppaOffense": 0.093,
+        "ppaDefense": 0.17
       },
-      "rankings": { "pointsPerGameSEC": 13, "yardsPerPlaySEC": 12, "turnoverMarginSEC": 10 },
-      "source": "seed_demo", "updatedAt": "2026-01-05T12:00:00-05:00", "confidence": "demo",
-      "note": "2025 record (5-7) is real; per-game values are illustrative demo numbers."
+      "source": "cfbd",
+      "updatedAt": "2026-06-16T12:01:48.177Z",
+      "confidence": "official",
+      "note": "Real 2025 CFBD data. Per-game values derived from season totals over 12 games; points from the game log. redZoneScorePct/QBR not provided by the available CFBD tier."
     },
     {
       "id": "kentucky_mens_basketball_2026_season",
-      "teamId": "kentucky_mens_basketball", "season": 2026, "sport": "mens_basketball", "scope": "season",
+      "teamId": "kentucky_mens_basketball",
+      "season": 2026,
+      "sport": "mens_basketball",
+      "scope": "season",
       "stats": {
-        "record": "0-0", "pointsPerGame": 84.2, "pointsAllowedPerGame": 71.8,
-        "fieldGoalPct": 0.471, "threePointPct": 0.371, "freeThrowPct": 0.742,
-        "reboundsPerGame": 38.5, "assistsPerGame": 16.2, "turnoversPerGame": 11.4,
-        "adjOffRating": 118.6, "adjDefRating": 96.4, "adjNetRating": 22.2,
-        "tempo": 70.3, "effectiveFgPct": 0.552, "turnoverRate": 0.151,
-        "offReboundRate": 0.341, "freeThrowRate": 0.362, "assistRate": 0.58
+        "record": "22-14",
+        "pointsPerGame": 80.5,
+        "pointsAllowedPerGame": 74.3,
+        "fieldGoalPct": 0.466,
+        "threePointPct": 0.342,
+        "freeThrowPct": 0.727,
+        "reboundsPerGame": 37.4,
+        "assistsPerGame": 15.9,
+        "turnoversPerGame": 10.8,
+        "offensiveRating": 115.9,
+        "defensiveRating": 107.2,
+        "adjOffRating": 121.5,
+        "adjDefRating": 98.3,
+        "adjNetRating": 23.3,
+        "tempo": 69.2,
+        "effectiveFgPct": 0.533,
+        "trueShootingPct": 0.575,
+        "turnoverRate": 0.16,
+        "offReboundRate": 0.312,
+        "freeThrowRate": 0.374
       },
-      "rankings": { "adjNetRatingNational": 8, "effectiveFgPctSEC": 3, "tempoNational": 42 },
-      "source": "seed_demo", "updatedAt": "2026-06-01T12:00:00-04:00", "confidence": "demo",
-      "note": "Preseason projection — illustrative demo values."
+      "source": "cbbd",
+      "updatedAt": "2026-06-16T12:01:48.177Z",
+      "confidence": "official",
+      "note": "Real 2025-26 (season=2026) CBBD data. Per-game values derived from season totals; rates from CBBD four factors."
     }
   ],
 
   "player_profiles": [
-    { "id": "fb_qb_demo", "name": "Demo QB1", "teamId": "kentucky_football", "sport": "football", "position": "QB", "classYear": "JR", "height": "6-3", "weight": "215", "hometown": "Lexington, KY", "jersey": 7, "active": true, "source": "seed_demo", "note": "Illustrative demo player (not a real roster name)" },
-    { "id": "fb_rb_demo", "name": "Demo RB1", "teamId": "kentucky_football", "sport": "football", "position": "RB", "classYear": "SO", "height": "5-11", "weight": "205", "hometown": "Louisville, KY", "jersey": 22, "active": true, "source": "seed_demo", "note": "Illustrative demo player" },
-    { "id": "fb_wr_demo", "name": "Demo WR1", "teamId": "kentucky_football", "sport": "football", "position": "WR", "classYear": "SR", "height": "6-2", "weight": "198", "hometown": "Cincinnati, OH", "jersey": 11, "active": true, "source": "seed_demo", "note": "Illustrative demo player" },
-    { "id": "mbb_g_demo1", "name": "Demo Guard1", "teamId": "kentucky_mens_basketball", "sport": "mens_basketball", "position": "G", "classYear": "SO", "height": "6-4", "weight": "195", "hometown": "Lexington, KY", "jersey": 3, "active": true, "source": "seed_demo", "note": "Illustrative demo player" },
-    { "id": "mbb_g_demo2", "name": "Demo Guard2", "teamId": "kentucky_mens_basketball", "sport": "mens_basketball", "position": "G", "classYear": "FR", "height": "6-2", "weight": "185", "hometown": "Atlanta, GA", "jersey": 1, "active": true, "source": "seed_demo", "note": "Illustrative demo player" },
-    { "id": "mbb_f_demo", "name": "Demo Forward1", "teamId": "kentucky_mens_basketball", "sport": "mens_basketball", "position": "F", "classYear": "JR", "height": "6-9", "weight": "230", "hometown": "Memphis, TN", "jersey": 24, "active": true, "source": "seed_demo", "note": "Illustrative demo player" }
+    {
+      "id": "fb_qb_demo",
+      "name": "Cutter Boley",
+      "teamId": "kentucky_football",
+      "sport": "football",
+      "position": "QB",
+      "classYear": "FR",
+      "height": "6-5",
+      "weight": "220",
+      "hometown": "Hodgenville, KY",
+      "jersey": 8,
+      "active": true,
+      "source": "cfbd",
+      "sourceId": "5141378"
+    },
+    {
+      "id": "fb_rb_demo",
+      "name": "Seth McGowan",
+      "teamId": "kentucky_football",
+      "sport": "football",
+      "position": "RB",
+      "classYear": "SR",
+      "height": "6-1",
+      "weight": "215",
+      "hometown": "Mesquite, TX",
+      "jersey": 3,
+      "active": true,
+      "source": "cfbd",
+      "sourceId": "4686468"
+    },
+    {
+      "id": "fb_wr_demo",
+      "name": "Kendrick Law",
+      "teamId": "kentucky_football",
+      "sport": "football",
+      "position": "WR",
+      "classYear": "SR",
+      "height": "6-0",
+      "weight": "205",
+      "hometown": "Shreveport, LA",
+      "jersey": 1,
+      "active": true,
+      "source": "cfbd",
+      "sourceId": "4685441"
+    },
+    {
+      "id": "mbb_g_demo1",
+      "name": "Otega Oweh",
+      "teamId": "kentucky_mens_basketball",
+      "sport": "mens_basketball",
+      "position": "G",
+      "height": "6-4",
+      "weight": "220",
+      "hometown": "Newark, NJ",
+      "jersey": 0,
+      "active": true,
+      "source": "cbbd",
+      "sourceId": "562"
+    },
+    {
+      "id": "mbb_g_demo2",
+      "name": "Denzel Aberdeen",
+      "teamId": "kentucky_mens_basketball",
+      "sport": "mens_basketball",
+      "position": "G",
+      "height": "6-5",
+      "weight": "195",
+      "hometown": "Orlando, FL",
+      "jersey": 1,
+      "active": true,
+      "source": "cbbd",
+      "sourceId": "503"
+    },
+    {
+      "id": "mbb_f_demo",
+      "name": "Malachi Moreno",
+      "teamId": "kentucky_mens_basketball",
+      "sport": "mens_basketball",
+      "position": "C",
+      "height": "7-0",
+      "weight": "250",
+      "hometown": "Georgetown, KY",
+      "jersey": 24,
+      "active": true,
+      "source": "cbbd",
+      "sourceId": "199963"
+    }
   ],
 
   "player_stats": [
-    { "id": "fb_qb_demo_2025", "playerId": "fb_qb_demo", "teamId": "kentucky_football", "season": 2025, "sport": "football", "scope": "season", "stats": { "passYards": 2480, "passTds": 16, "interceptions": 11, "completionPct": 0.601, "rushYards": 240, "qbr": 62.5 }, "source": "seed_demo", "updatedAt": "2026-01-05T12:00:00-05:00", "confidence": "demo" },
-    { "id": "fb_rb_demo_2025", "playerId": "fb_rb_demo", "teamId": "kentucky_football", "season": 2025, "sport": "football", "scope": "season", "stats": { "rushYards": 812, "rushTds": 7, "yardsPerCarry": 4.6, "receptions": 22, "recYards": 168 }, "source": "seed_demo", "updatedAt": "2026-01-05T12:00:00-05:00", "confidence": "demo" },
-    { "id": "fb_wr_demo_2025", "playerId": "fb_wr_demo", "teamId": "kentucky_football", "season": 2025, "sport": "football", "scope": "season", "stats": { "receptions": 51, "recYards": 712, "recTds": 5, "yardsPerCatch": 14.0 }, "source": "seed_demo", "updatedAt": "2026-01-05T12:00:00-05:00", "confidence": "demo" },
-    { "id": "mbb_g_demo1_2026", "playerId": "mbb_g_demo1", "teamId": "kentucky_mens_basketball", "season": 2026, "sport": "mens_basketball", "scope": "season", "stats": { "points": 16.4, "rebounds": 4.1, "assists": 3.8, "effectiveFgPct": 0.571, "threePointPct": 0.402, "usageRate": 0.244 }, "source": "seed_demo", "updatedAt": "2026-06-01T12:00:00-04:00", "confidence": "demo" },
-    { "id": "mbb_g_demo2_2026", "playerId": "mbb_g_demo2", "teamId": "kentucky_mens_basketball", "season": 2026, "sport": "mens_basketball", "scope": "season", "stats": { "points": 12.1, "rebounds": 2.9, "assists": 5.2, "effectiveFgPct": 0.528, "threePointPct": 0.356, "assistTurnoverRatio": 2.6 }, "source": "seed_demo", "updatedAt": "2026-06-01T12:00:00-04:00", "confidence": "demo" },
-    { "id": "mbb_f_demo_2026", "playerId": "mbb_f_demo", "teamId": "kentucky_mens_basketball", "season": 2026, "sport": "mens_basketball", "scope": "season", "stats": { "points": 14.8, "rebounds": 8.6, "assists": 1.7, "effectiveFgPct": 0.602, "blocksPerGame": 1.9, "offReboundRate": 0.121 }, "source": "seed_demo", "updatedAt": "2026-06-01T12:00:00-04:00", "confidence": "demo" }
+    {
+      "id": "fb_qb_demo_2025",
+      "playerId": "fb_qb_demo",
+      "teamId": "kentucky_football",
+      "season": 2025,
+      "sport": "football",
+      "scope": "season",
+      "stats": {
+        "passYards": 2160,
+        "passTds": 15,
+        "interceptions": 12,
+        "completions": 198,
+        "passAttempts": 301,
+        "completionPct": 0.658,
+        "yardsPerAttempt": 7.2,
+        "rushYards": 85,
+        "rushTds": 2
+      },
+      "source": "cfbd",
+      "updatedAt": "2026-06-16T12:01:48.177Z",
+      "confidence": "official"
+    },
+    {
+      "id": "fb_rb_demo_2025",
+      "playerId": "fb_rb_demo",
+      "teamId": "kentucky_football",
+      "season": 2025,
+      "sport": "football",
+      "scope": "season",
+      "stats": {
+        "rushYards": 725,
+        "rushTds": 12,
+        "carries": 165,
+        "yardsPerCarry": 4.4,
+        "longRush": 20,
+        "receptions": 19,
+        "recYards": 126,
+        "recTds": 0
+      },
+      "source": "cfbd",
+      "updatedAt": "2026-06-16T12:01:48.177Z",
+      "confidence": "official"
+    },
+    {
+      "id": "fb_wr_demo_2025",
+      "playerId": "fb_wr_demo",
+      "teamId": "kentucky_football",
+      "season": 2025,
+      "sport": "football",
+      "scope": "season",
+      "stats": {
+        "receptions": 53,
+        "recYards": 540,
+        "recTds": 3,
+        "yardsPerCatch": 10.2,
+        "longRec": 71
+      },
+      "source": "cfbd",
+      "updatedAt": "2026-06-16T12:01:48.177Z",
+      "confidence": "official"
+    },
+    {
+      "id": "mbb_g_demo1_2026",
+      "playerId": "mbb_g_demo1",
+      "teamId": "kentucky_mens_basketball",
+      "season": 2026,
+      "sport": "mens_basketball",
+      "scope": "season",
+      "stats": {
+        "points": 18.6,
+        "rebounds": 4.8,
+        "assists": 2.7,
+        "effectiveFgPct": 0.51,
+        "threePointPct": 0.333,
+        "trueShootingPct": 0.561,
+        "usageRate": 0.283,
+        "stealsPerGame": 1.8
+      },
+      "source": "cbbd",
+      "updatedAt": "2026-06-16T12:01:48.177Z",
+      "confidence": "official"
+    },
+    {
+      "id": "mbb_g_demo2_2026",
+      "playerId": "mbb_g_demo2",
+      "teamId": "kentucky_mens_basketball",
+      "season": 2026,
+      "sport": "mens_basketball",
+      "scope": "season",
+      "stats": {
+        "points": 13.5,
+        "rebounds": 2.5,
+        "assists": 3.4,
+        "effectiveFgPct": 0.516,
+        "threePointPct": 0.363,
+        "trueShootingPct": 0.566,
+        "usageRate": 0.215,
+        "assistTurnoverRatio": 2.62
+      },
+      "source": "cbbd",
+      "updatedAt": "2026-06-16T12:01:48.177Z",
+      "confidence": "official"
+    },
+    {
+      "id": "mbb_f_demo_2026",
+      "playerId": "mbb_f_demo",
+      "teamId": "kentucky_mens_basketball",
+      "season": 2026,
+      "sport": "mens_basketball",
+      "scope": "season",
+      "stats": {
+        "points": 7.8,
+        "rebounds": 6.3,
+        "assists": 1.8,
+        "effectiveFgPct": 0.582,
+        "threePointPct": 0,
+        "trueShootingPct": 0.635,
+        "usageRate": 0.162,
+        "blocksPerGame": 1.5,
+        "offReboundRate": 0.382
+      },
+      "source": "cbbd",
+      "updatedAt": "2026-06-16T12:01:48.177Z",
+      "confidence": "official"
+    }
   ],
 
   "predictions": [
@@ -412,69 +645,131 @@
 
   "articles": [
     {
-      "id": "article_fb_2026_youngstown_preview",
-      "type": "preview",
-      "gameId": "fb_2026_youngstown",
+      "id": "article_fb_2025_eastern_michigan_recap",
+      "type": "recap",
+      "gameId": "fb_2025_eastern_michigan",
       "sport": "football",
       "status": "published",
-      "headline": "Fresh Start at Kroger Field: Kentucky Opens 2026 Against Youngstown State",
-      "subheadline": "After a 5-7 grind in 2025, the Cats get a home tune-up to find their rhythm before the SEC gauntlet",
-      "openingNarrative": "New season, clean slate. Kentucky kicks off 2026 at Kroger Field against FCS visitor Youngstown State, and the mission is simple: shake off the rust from a disappointing 5-7 campaign and build confidence early. The win probability sits at a comfortable 92 percent, and a matchup score of 88 reflects just how lopsided this opener looks on paper. But for a program hungry to reset, the real value isn't the result — it's establishing tempo, getting bodies healthy, and proving the offense can find a groove before the schedule turns brutal.",
+      "headline": "Wildcats Roll Eastern Michigan 48-23 Behind Balanced Offensive Assault",
+      "subheadline": "Kentucky's run game and a freshman quarterback set the tone in a Kroger Field statement win",
+      "openingNarrative": "There was nothing ambiguous about this one. Kentucky lit up the scoreboard for 48 points, putting Eastern Michigan away in a game that showcased exactly what this offense can be when it clicks. The Wildcats leaned on a punishing ground attack and just enough vertical pop through the air to keep EMU on its heels all night under the lights in Lexington. For a team whose season ledger reads 5-7, this was a glimpse of the ceiling — a complete offensive performance and a 25-point margin that felt every bit as comfortable as the final number suggests.",
       "tacticalBreakdown": {
-        "title": "Setting the Tone Early",
-        "narrative": "The blueprint is straightforward. Kentucky must start fast and impose its will in the first quarter, leaning on a run game that averaged 148.3 yards per game in 2025. Establish the ground attack behind the line, open up play-action, and let the passing game find rhythm. With a 39 percent third-down rate and 81 percent red-zone scoring last year, finishing drives matters. Win the early downs, stay healthy, and let the depth take over against an overmatched FCS opponent."
+        "title": "How Kentucky Took Control",
+        "narrative": "Kentucky's blueprint was balance personified. With a season rushing average of 139.3 yards per game and 201.9 through the air, the Wildcats forced EMU to defend every blade of grass. A 40.3% third-down conversion rate kept drives alive, while an offense averaging 5.07 yards per play methodically moved the chains. The freshman trigger man managed the game with poise, and the ground attack imposed its will. Forty-eight points doesn't happen by accident — it happens when an offense executes its identity from snap one to the final whistle."
       },
       "byTheNumbers": {
-        "title": "The Tale of the Tape",
+        "title": "The Stat Sheet",
         "items": [
-          "Kentucky win probability: 92% — Youngstown State: 8%",
-          "Matchup score: 88 with a Kentucky edge",
-          "Fan confidence: 84",
-          "Kentucky 2025 record: 5-7",
-          "Points per game: 23.8 for UK, 24.6 for YSU",
-          "Yards per play: 5.4 UK, 5.1 YSU",
-          "Third-down rate: 39% UK, 41% YSU",
-          "Turnover margin: -0.2 UK, +0.3 YSU"
+          "48 points scored — well above Kentucky's 23.0 season scoring average",
+          "25-point margin of victory over Eastern Michigan",
+          "139.3 rushing yards per game powering the offensive identity",
+          "201.9 passing yards per game on the season",
+          "40.3% third-down conversion rate keeping drives breathing",
+          "5.07 yards per play across the campaign"
         ]
       },
       "playerSpotlights": [
         {
           "playerId": "fb_qb_demo",
-          "name": "Demo QB1",
+          "name": "Cutter Boley",
           "position": "QB",
-          "narrative": "The junior signal-caller sets the tempo as Kentucky opens a new chapter. Cutting down on the 11 interceptions from a year ago and lifting that completion rate will be the key to unlocking this offense. A clean, confident performance here builds momentum heading into conference play.",
-          "statline": "2,480 pass yds, 16 TD, 11 INT, 60.1% comp, 240 rush yds, 62.5 QBR"
+          "narrative": "The freshman from Hodgenville continues to grow into the job, completing 65.8% of his throws on the season with a 7.2 yards-per-attempt clip. His 15 touchdown passes against 12 interceptions show a young arm still learning, but the upside is undeniable for a homegrown signal-caller.",
+          "statline": "2,160 pass yds, 15 TD, 12 INT, 65.8% comp, 85 rush yds, 2 rush TD"
         },
         {
           "playerId": "fb_rb_demo",
-          "name": "Demo RB1",
+          "name": "Seth McGowan",
           "position": "RB",
-          "narrative": "The sophomore back is the engine that should get rolling early. At 4.6 yards per carry with soft hands out of the backfield, he gives Kentucky a versatile weapon to control the clock and set up the play-action looks.",
-          "statline": "812 rush yds, 7 TD, 4.6 YPC, 22 rec, 168 rec yds"
+          "narrative": "The senior is the engine of this offense. McGowan's 12 rushing touchdowns and 725 yards on 165 carries give Kentucky a dependable finisher near the goal line, and his 19 receptions add a dimension out of the backfield.",
+          "statline": "725 rush yds, 12 TD, 4.4 YPC, 19 rec, 126 rec yds"
         },
         {
           "playerId": "fb_wr_demo",
-          "name": "Demo WR1",
+          "name": "Kendrick Law",
           "position": "WR",
-          "narrative": "The senior wideout is the reliable target this passing game needs. With 712 yards and a 14-yard average per catch, he stretches the field and gives the quarterback a trusted go-to on third down.",
-          "statline": "51 rec, 712 yds, 5 TD, 14.0 yds/catch"
+          "narrative": "Law has been the steady hand at receiver, hauling in a team-leading 53 catches for 540 yards and three scores. His 71-yard long reception proves he can break a game open in an instant.",
+          "statline": "53 rec, 540 yds, 3 TD, 10.2 YPC, 71 long"
+        }
+      ],
+      "theVerdict": {
+        "title": "The Bottom Line",
+        "prediction": "A decisive, confidence-building home win for Kentucky",
+        "confidence": 90,
+        "narrative": "This was the version of Kentucky fans want to see every Saturday. Forty-eight points, a balanced attack, and a young quarterback finding rhythm. The 5-7 season record tells one story, but performances like this one against EMU reveal the talent that's there. When the run game and passing game work in concert, this offense is dangerous."
+      },
+      "closingLine": "Forty-eight points, one statement, and a glimpse of what this Kentucky offense can truly become.",
+      "sources": [
+        "seed_demo:team_stats/kentucky_football_2025_season",
+        "seed_demo:games/fb_2025_eastern_michigan"
+      ],
+      "model": "claude-opus-4-8",
+      "generatedAt": "2026-06-16T12:07:30.377Z",
+      "publishedAt": "2026-06-16T12:07:30.377Z",
+      "confidence": "demo",
+      "featured": false
+    },
+    {
+      "id": "article_fb_2026_youngstown_preview",
+      "type": "preview",
+      "gameId": "fb_2026_youngstown",
+      "sport": "football",
+      "status": "published",
+      "headline": "Cats Crank Up a New Season Against Youngstown State",
+      "subheadline": "Kentucky opens at Kroger Field hungry to bury the memory of a 5-7 fall",
+      "openingNarrative": "There's a clean slate feeling in Lexington, and it starts under the lights at Kroger Field against FCS visitor Youngstown State. After a frustrating 5-7 2025, the Wildcats need a Week 1 tune-up to rebuild rhythm and confidence before the SEC gauntlet arrives. The matchup leans heavily Kentucky's way, with a 92% projected win probability and a matchup score of 88. This is about establishing the run, finding a passing groove, and emerging healthy. Expect early aggression and a chance to let a young quarterback settle into the tempo of a new year.",
+      "tacticalBreakdown": {
+        "title": "How Kentucky Sets the Tone",
+        "narrative": "The blueprint is simple: start fast, lean on the run, and let the passing game find its legs. Kentucky averaged 139.3 rushing yards per game in 2025, and Seth McGowan's downhill style fits a script built on controlling the line. A 40.3% third-down rate must climb. Defensively, the Cats need to clean up a minus-0.67 turnover margin that haunted them all of last fall. Win the early downs, protect the football, and the rest follows against an FCS visitor."
+      },
+      "byTheNumbers": {
+        "title": "The Tale of the Tape",
+        "items": [
+          "Kentucky win probability: 92% to Youngstown State's 8%",
+          "Matchup score: 88 with a fan confidence of 84",
+          "Kentucky 2025 record: 5-7, scoring 23.0 points per game",
+          "Cats allowed 26.4 points per game and posted a minus-0.67 turnover margin",
+          "14 takeaways against 22 giveaways in 2025",
+          "Third-down conversion rate: 40.3%"
+        ]
+      },
+      "playerSpotlights": [
+        {
+          "playerId": "fb_qb_demo",
+          "name": "Cutter Boley",
+          "position": "QB",
+          "narrative": "The freshman from Hodgenville sets the tempo for a new era. His 65.8% completion rate flashes promise, but the 12 interceptions are the number to trim. A confidence-building opener could spark his entire season.",
+          "statline": "2,160 pass yards, 15 TD, 12 INT, 65.8% completions, 7.2 YPA, 85 rush yards, 2 rush TD"
+        },
+        {
+          "playerId": "fb_rb_demo",
+          "name": "Seth McGowan",
+          "position": "RB",
+          "narrative": "The senior back is the engine. His 12 rushing touchdowns and 4.4 yards per carry give Kentucky a reliable foundation, and he chips in as a receiver out of the backfield too.",
+          "statline": "725 rush yards, 12 TD, 165 carries, 4.4 YPC, 19 receptions, 126 rec yards"
+        },
+        {
+          "playerId": "fb_wr_demo",
+          "name": "Kendrick Law",
+          "position": "WR",
+          "narrative": "The senior wideout is Boley's steadying target, with a 71-yard long catch showing big-play range. His 53 grabs anchor a passing game searching for rhythm.",
+          "statline": "53 receptions, 540 rec yards, 3 TD, 10.2 yards per catch, long of 71"
         }
       ],
       "theVerdict": {
         "title": "The Verdict",
-        "prediction": "Kentucky cruises in the opener",
+        "prediction": "Kentucky rolls in the opener",
         "confidence": 84,
-        "narrative": "This is a get-right game, and Kentucky should handle it. The talent gap is significant, the venue is friendly, and the motivation to erase 2025 is real. The only concern is Week 1 rust and avoiding injuries. Expect the Cats to control the line, lean on the run, and build the confidence they'll need when the SEC schedule arrives."
+        "narrative": "Everything points to a comfortable Wildcat win. The talent gap is real, and the projected 92% win probability reflects it. The bigger story is whether Boley settles in and the run game asserts itself. Get those boxes checked, stay healthy, and Kentucky walks into SEC play with momentum and a much-needed dose of confidence."
       },
-      "closingLine": "New year, fresh start — the Cats open at home with everything to gain and a season to reclaim.",
+      "closingLine": "New season, fresh start — the Cats begin writing a better story.",
       "sources": [
         "seed_demo:team_stats/kentucky_football_2025_season",
         "seed_demo:game_summaries/fb_2026_youngstown",
         "seed_demo:games/fb_2026_youngstown"
       ],
       "model": "claude-opus-4-8",
-      "generatedAt": "2026-06-16T08:40:05.236Z",
-      "publishedAt": "2026-06-16T08:40:05.236Z",
+      "generatedAt": "2026-06-16T12:06:02.666Z",
+      "publishedAt": "2026-06-16T12:06:02.666Z",
       "confidence": "demo",
       "featured": true
     },
@@ -484,109 +779,64 @@
       "gameId": "mbb_2026_louisville",
       "sport": "mens_basketball",
       "status": "published",
-      "headline": "Bluegrass Renewed: Cats Eye Rivalry Statement at Rupp",
-      "subheadline": "Kentucky's tempo and second-chance scoring shape a projected edge over Louisville",
-      "openingNarrative": "There's no game on the calendar that gets the Bluegrass buzzing like this one, and the projected meeting at Rupp Arena carries every ounce of that weight. Kentucky enters with a humming offense — a projected 118.6 adjusted offensive rating and a tempo of 70.3 that wants to run Louisville off their feet. The Cards counter with their own pop at 114.2, but the demo projections favor the home side at 61% win probability. A note for clarity: the 2026-27 schedule isn't finalized, so treat this as a placeholder for a very real rivalry.",
+      "headline": "Bluegrass Renewed: Cats Brace for Louisville at Rupp",
+      "subheadline": "Tempo, second chances, and a raucous Rupp could tilt the rivalry blue",
+      "openingNarrative": "There's no game on the Kentucky calendar quite like Louisville, and even with a placeholder date this matchup carries the weight of a state's pride. The Wildcats roll in with a 22-14 résumé, a top-tier adjusted offense (121.5), and a tempo (69.2) that wants to run the Cardinals off the floor. Rupp Arena will be electric, the half-court chess match will be tense, and the margins razor-thin. Kentucky owns the analytical edge in efficiency and shooting, but rivalry games rip up the script. Buckle in — this one feels like a 40-minute heavyweight scrap.",
       "tacticalBreakdown": {
-        "title": "How Kentucky Wins the Floor",
-        "narrative": "Pace is the lever. Kentucky's 70.3 tempo outruns Louisville's 67.5, and getting into the open floor maximizes a 55.2% effective field goal mark. The other battleground is the glass — Kentucky's 34.1% offensive rebound rate fuels second-chance points that demoralize on the road. Defensively, the Cats' projected 96.4 adjusted defensive rating must hold without sending Louisville to the line. Win possessions early, push the count past 70, and protect Rupp."
+        "title": "How Kentucky Wins the Chess Match",
+        "narrative": "It starts with pace. Kentucky's 70-plus possession appetite outruns Louisville's 67.5 tempo, and the Cats' adjusted offense (121.5) towers over the Cardinals' defense (98.1). The offensive glass is the swing factor — a 31.2% offensive rebound rate fuels second-chance buckets. Defensively, Kentucky must protect Rupp without fouling, leaning on a stout adjusted defensive mark. Win the math on extra possessions and tempo, and the edge holds.\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\""
       },
       "byTheNumbers": {
         "title": "The Tale of the Tape",
         "items": [
-          "Kentucky projected adjusted offensive rating: 118.6",
-          "Louisville projected adjusted offensive rating: 114.2",
-          "Kentucky adjusted net rating: 22.2 (8th nationally)",
-          "Kentucky effective FG%: 55.2% (3rd in SEC)",
-          "Tempo edge: 70.3 to 67.5",
-          "Win probability: Kentucky 61%, Louisville 39%",
-          "Points per game: 84.2 scored, 71.8 allowed",
-          "Offensive rebound rate: 34.1%"
+          "Kentucky adjusted offense: 121.5 vs Louisville defense: 98.1",
+          "Kentucky tempo 69.2 — pushing toward 70+ possessions",
+          "Wildcats score 80.5 per game, allow 74.3",
+          "Offensive rebound rate: 31.2% fueling second chances",
+          "Win probability lean: Kentucky 61%, Louisville 39%",
+          "Effective FG%: Kentucky .533 vs Louisville .531"
         ]
       },
       "playerSpotlights": [
         {
           "playerId": "mbb_g_demo1",
-          "name": "Demo Guard1",
-          "position": "G (SO)",
-          "narrative": "The designated player to watch, the Lexington native brings rising usage and a deadly catch-and-shoot stretch. His 40.2% from deep stretches defenses and opens driving lanes for everyone.",
-          "statline": "16.4 PPG, 4.1 REB, 3.8 AST, 57.1 eFG%, 40.2 3P%, 24.4% usage"
+          "name": "Otega Oweh",
+          "position": "G",
+          "narrative": "The engine of the offense, Oweh carries a heavy 28.3% usage and creates havoc defensively with 1.8 steals per game. His ability to attack downhill and finish in transition is exactly what this run-and-gun plan demands.",
+          "statline": "18.6 PPG, 4.8 REB, 2.7 AST, 1.8 STL, .561 TS%"
         },
         {
           "playerId": "mbb_g_demo2",
-          "name": "Demo Guard2",
-          "position": "G (FR)",
-          "narrative": "The freshman floor general keeps the engine clean, distributing with a 2.6 assist-to-turnover ratio and providing scoring punch when Kentucky pushes pace.",
-          "statline": "12.1 PPG, 5.2 AST, 2.9 REB, 52.8 eFG%, 2.6 AST/TO"
+          "name": "Denzel Aberdeen",
+          "position": "G",
+          "narrative": "The steady hand in the backcourt. A 2.62 assist-to-turnover ratio and 36.3% three-point stroke make Aberdeen the connective tissue, valuable in a rivalry game where careless possessions get punished.",
+          "statline": "13.5 PPG, 3.4 AST, .363 3P%, 2.62 A/TO"
         },
         {
           "playerId": "mbb_f_demo",
-          "name": "Demo Forward1",
-          "position": "F (JR)",
-          "narrative": "The interior anchor cleans the glass and finishes at a blistering 60.2% clip while protecting the rim. His 8.6 boards a night feed those second-chance points.",
-          "statline": "14.8 PPG, 8.6 REB, 1.9 BLK, 60.2 eFG%"
+          "name": "Malachi Moreno",
+          "position": "C",
+          "narrative": "The 7-foot Kentucky native is the glass-cleaning anchor. A 38.2% offensive rebound rate and 1.5 blocks per game make him the second-chance machine and rim protector this game plan leans on.",
+          "statline": "7.8 PPG, 6.3 REB, 1.5 BLK, .635 TS%"
         }
       ],
       "theVerdict": {
-        "title": "The Verdict",
-        "prediction": "Kentucky holds serve at home",
+        "title": "The Cats Hold Serve",
+        "prediction": "Kentucky wins a tense rivalry battle at Rupp",
         "confidence": 68,
-        "narrative": "The projections lean Kentucky's way, and the formula is clear: control tempo, dominate the offensive glass, and defend without fouling. Rivalry intensity raises the concern meter to medium, and half-court execution will be tested. But at Rupp, with a 22.2 net rating, the Cats have the firepower to make a statement."
+        "narrative": "The efficiency gap and tempo advantage favor Kentucky, and home court at Rupp matters in a rivalry this fierce. Second-chance points and Oweh's two-way punch should carry the day. But Louisville games never go quietly — expect a half-court grind and a nervy finish before the Cats pull away."
       },
-      "closingLine": "Placeholder date, permanent stakes — when the Cards come to Rupp, the Bluegrass holds its breath.",
+      "closingLine": "Rivalry week at Rupp — the Cats have the edge, but pride writes its own ending.",
       "sources": [
         "seed_demo:team_stats/kentucky_mens_basketball_2026_season",
         "seed_demo:game_summaries/mbb_2026_louisville",
         "seed_demo:games/mbb_2026_louisville"
       ],
       "model": "claude-opus-4-8",
-      "generatedAt": "2026-06-16T08:40:26.952Z",
-      "publishedAt": "2026-06-16T08:40:26.952Z",
+      "generatedAt": "2026-06-16T12:06:26.718Z",
+      "publishedAt": "2026-06-16T12:06:26.718Z",
       "confidence": "demo",
       "featured": true
-    },
-    {
-      "id": "article_fb_2025_eastern_michigan_recap",
-      "type": "recap",
-      "gameId": "fb_2025_eastern_michigan",
-      "sport": "football",
-      "status": "published",
-      "headline": "Cats Cruise: Kentucky Rolls Past Eastern Michigan 48-23",
-      "subheadline": "A balanced, high-scoring afternoon at Kroger Field.",
-      "openingNarrative": "Kentucky put up its best offensive output of the 2025 season in a 48-23 win over Eastern Michigan. The Cats scored early and often, leaning on a balanced attack to control the game from the opening drive — a welcome bright spot in what would become a 5-7 campaign.",
-      "byTheNumbers": {
-        "title": "By the Numbers",
-        "items": [
-          "Final: Kentucky 48, Eastern Michigan 23 (real 2025 result).",
-          "A season-high point total for the Kentucky offense.",
-          "Balanced run/pass production set the tone."
-        ]
-      },
-      "playerSpotlights": [
-        {
-          "playerId": "fb_rb_demo",
-          "name": "Demo RB1",
-          "teamId": "kentucky_football",
-          "position": "RB",
-          "narrative": "Found running room and helped control the clock in a comfortable win.",
-          "statline": "demo game line"
-        }
-      ],
-      "theVerdict": {
-        "title": "The Takeaway",
-        "result": "Kentucky 48, Eastern Michigan 23",
-        "narrative": "Exactly the kind of complementary football the Cats wanted — score points, stay clean, and bank a non-conference win."
-      },
-      "closingLine": "A high-scoring afternoon and a comfortable W to file away.",
-      "sources": [
-        "real_result:2025 Kentucky 48-23 Eastern Michigan",
-        "seed_demo:games/fb_2025_eastern_michigan"
-      ],
-      "model": "seed_template",
-      "generatedAt": "2025-09-06T23:30:00-04:00",
-      "publishedAt": "2025-09-06T23:45:00-04:00",
-      "confidence": "demo",
-      "featured": false
     }
   ]
 }

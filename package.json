@@ -10,7 +10,9 @@
     "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage",
     "generate": "npm --prefix scripts run generate",
     "apply-articles": "npm --prefix scripts run apply-articles",
-    "check-keys": "npm --prefix scripts run check-keys"
+    "check-keys": "npm --prefix scripts run check-keys",
+    "_comment_sync-data": "NODE_TLS_REJECT_UNAUTHORIZED=0 is required only because this dev machine sits behind a corporate SSL-inspection proxy that breaks Node's TLS to the CFBD/CBBD APIs. LOCAL DEV ONLY — do not use in CI/production.",
+    "sync-data": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 npm --prefix scripts run sync-data"
   },
   "devDependencies": {
     "cross-env": "^7.0.3"
