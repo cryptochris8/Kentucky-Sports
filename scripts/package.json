@@ -9,7 +9,9 @@
     "sync-data": "tsx sync_real_data.ts",
     "generate": "tsx generate_articles.ts",
     "apply-articles": "tsx apply_generated_articles.ts",
-    "check-keys": "tsx check_keys.ts"
+    "check-keys": "tsx check_keys.ts",
+    "vault-sync": "tsx sync_vault_history.ts",
+    "generate-legend": "tsx generate_legend.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.2",

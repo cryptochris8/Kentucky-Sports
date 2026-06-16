@@ -14,6 +14,8 @@ import '../features/profile/profile_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/stats_lab/stats_lab_screen.dart';
 import '../features/teams/team_page_screen.dart';
+import '../features/vault/vault_legend_screen.dart';
+import '../features/vault/vault_screen.dart';
 import 'shell.dart';
 
 /// Route path constants to avoid stringly-typed navigation.
@@ -23,6 +25,7 @@ abstract final class Routes {
   static const String gameday = '/gameday';
   static const String stats = '/stats';
   static const String pipeline = '/pipeline';
+  static const String vault = '/vault';
   static const String profile = '/profile';
   static const String badges = '/profile/badges';
   static const String predictions = '/predictions';
@@ -30,6 +33,7 @@ abstract final class Routes {
 
   static String team(String teamId) => '/team/$teamId';
   static String player(String playerId) => '/player/$playerId';
+  static String vaultLegend(String legendId) => '/vault/legend/$legendId';
 }
 
 /// Builds the app [GoRouter]. Uses a [StatefulShellRoute] for the bottom nav so
@@ -51,6 +55,11 @@ GoRouter buildRouter(Ref ref) {
             const OnboardingScreen(),
       ),
       // Full-screen detail routes (pushed above the shell).
+      GoRoute(
+        path: '/vault/legend/:legendId',
+        builder: (BuildContext context, GoRouterState state) =>
+            VaultLegendScreen(legendId: state.pathParameters['legendId']!),
+      ),
       GoRoute(
         path: '/team/:teamId',
         builder: (BuildContext context, GoRouterState state) =>
@@ -119,6 +128,15 @@ GoRouter buildRouter(Ref ref) {
                 path: Routes.pipeline,
                 builder: (BuildContext context, GoRouterState state) =>
                     const PipelineScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
+                path: Routes.vault,
+                builder: (BuildContext context, GoRouterState state) =>
+                    const VaultScreen(),
               ),
             ],
           ),

@@ -1,0 +1,58 @@
+{
+  "_meta": {
+    "description": "The Vault — Legends features (AI-drafted from sourced briefs; status:draft until Chris publishes)."
+  },
+  "vault_legends": [
+    {
+      "id": "legend_rupp",
+      "type": "legend",
+      "subject": "Adolph Rupp",
+      "sport": "mens_basketball",
+      "era": "1930-1972",
+      "title": "The Baron of the Bluegrass",
+      "subtitle": "How Adolph Rupp built college basketball's winningest empire across four decades in Lexington",
+      "sections": [
+        {
+          "heading": "Four Decades, One Standard",
+          "body": "From 1930 to 1972, Adolph Rupp didn't just coach Kentucky basketball — he defined it. By the time he stepped away, his record stood at 876-190, an .822 winning percentage and the most wins of any men's NCAA Division I coach at the time of his retirement. The man they called the Baron of the Bluegrass turned a regional program into a national measuring stick, and the numbers still read like a dare to anyone who follows."
+        },
+        {
+          "heading": "Titles and Trophies",
+          "body": "The hardware piled up in waves. Rupp captured four NCAA championships — 1948, 1949, 1951 and 1958 — and added the 1946 NIT crown for good measure. Within his own conference he was untouchable, winning 27 SEC regular-season titles and 13 SEC tournament titles. His teams reached 20 NCAA tournaments and six Final Fours, and Rupp himself was named National Coach of the Year five times: 1950, 1954, 1959, 1966 and 1970."
+        },
+        {
+          "heading": "Fabulous and Fiddlin'",
+          "body": "Some Kentucky teams earned names that outlived their seasons. The 1948 NCAA champions became the 'Fabulous Five,' a label that captured both their talent and their swagger. A decade later, the 1958 NCAA champions answered with a personality all their own as the 'Fiddlin' Five' — proof that Rupp's blueprint could win without leaning on the same script twice."
+        },
+        {
+          "heading": "The Hard Chapters",
+          "body": "No honest accounting of the era skips its darker turns. Kentucky did not field a team for the 1952-53 season after NCAA sanctions connected to a point-shaving scandal of that period — a sobering pause in an otherwise relentless climb. And in 1966, Rupp's team reached the NCAA championship game and lost to Texas Western, whose all-Black starting lineup made the game a landmark moment in the integration of college basketball. It remains one of the sport's most significant nights, and a reckoning that the program's history carries with it."
+        },
+        {
+          "heading": "A Name That Endures",
+          "body": "When Rupp Arena opened in 1976, it gave permanent shape to a legacy already etched into the record books. The building bearing his name stands as a reminder of what one coach built in Lexington — and of the full, complicated story of college basketball's most decorated era."
+        }
+      ],
+      "byTheNumbers": [
+        "876-190 career record (.822) — most wins of any men's NCAA Division I coach at his retirement",
+        "4 NCAA championships: 1948, 1949, 1951, 1958",
+        "27 SEC regular-season titles and 13 SEC tournament titles",
+        "20 NCAA tournament appearances and 6 Final Fours",
+        "5-time National Coach of the Year: 1950, 1954, 1959, 1966, 1970",
+        "1946 NIT championship"
+      ],
+      "pullQuote": "The Baron of the Bluegrass turned a regional program into a national measuring stick.",
+      "closingLine": "From the Fabulous Five to the building that bears his name, Rupp's 42 years remain Kentucky's foundation — triumphs and reckonings alike.",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Adolph_Rupp",
+        "https://en.wikipedia.org/wiki/Kentucky_Wildcats_men's_basketball_under_Adolph_Rupp",
+        "https://www.britannica.com/biography/Adolph-Rupp",
+        "https://www.sports-reference.com/cbb/coaches/adolph-rupp-1.html"
+      ],
+      "model": "claude-opus-4-8",
+      "status": "draft",
+      "confidence": "researched",
+      "generatedAt": "2026-06-16T16:46:02.445Z"
+    }
+  ]
+}

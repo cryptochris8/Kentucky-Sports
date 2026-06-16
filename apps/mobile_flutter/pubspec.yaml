@@ -43,3 +43,6 @@ flutter:
     # Build-time copy of the canonical seed at seed_data/dev_seed.json.
     # The MockDataSource loads this so the app runs with zero backend.
     - assets/seed/dev_seed.json
+    # The Vault — real UK season records + Legends features (mock-first).
+    - assets/vault/vault_seasons.json
+    - assets/vault/vault_legends.json

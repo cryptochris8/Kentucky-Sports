@@ -1068,6 +1068,148 @@ class Article {
 }
 
 // ---------------------------------------------------------------------------
+// The Vault — season records + Legends features
+// ---------------------------------------------------------------------------
+
+/// One Kentucky season record from the Vault spine.
+///
+/// sport: "football" | "mens_basketball"
+/// confidence: "official" (source: CFBD or CBBD real data)
+class VaultSeason {
+  const VaultSeason({
+    required this.id,
+    required this.sport,
+    required this.season,
+    required this.seasonLabel,
+    required this.conference,
+    required this.wins,
+    required this.losses,
+    required this.ties,
+    required this.record,
+    required this.conferenceRecord,
+    required this.source,
+    required this.confidence,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String sport;
+  final int season;
+  final String seasonLabel;
+  final String conference;
+  final int? wins;
+  final int? losses;
+  final int? ties;
+  final String record;
+  final String? conferenceRecord;
+  final String source;
+  final String confidence;
+  final DateTime? updatedAt;
+
+  factory VaultSeason.fromJson(Map<String, dynamic> j) => VaultSeason(
+    id: j['id']?.toString() ?? '',
+    sport: j['sport']?.toString() ?? 'football',
+    season: _toInt(j['season']) ?? 0,
+    seasonLabel: j['seasonLabel']?.toString() ?? '',
+    conference: j['conference']?.toString() ?? '',
+    wins: _toInt(j['wins']),
+    losses: _toInt(j['losses']),
+    ties: _toInt(j['ties']),
+    record: j['record']?.toString() ?? '',
+    conferenceRecord: j['conferenceRecord']?.toString(),
+    source: j['source']?.toString() ?? '',
+    confidence: j['confidence']?.toString() ?? 'official',
+    updatedAt: _toDate(j['updatedAt']),
+  );
+}
+
+/// A single narrative section inside a VaultLegend article.
+class VaultLegendSection {
+  const VaultLegendSection({required this.heading, required this.body});
+
+  final String heading;
+  final String body;
+
+  factory VaultLegendSection.fromJson(Map<String, dynamic> j) =>
+      VaultLegendSection(
+        heading: j['heading']?.toString() ?? '',
+        body: j['body']?.toString() ?? '',
+      );
+}
+
+/// An Eras & Legends narrative feature article.
+///
+/// type: "legend" | "era"
+/// status: "draft" | "published"
+/// confidence: "researched"
+class VaultLegend {
+  const VaultLegend({
+    required this.id,
+    required this.type,
+    required this.subject,
+    required this.sport,
+    required this.era,
+    required this.title,
+    required this.subtitle,
+    required this.sections,
+    required this.byTheNumbers,
+    required this.pullQuote,
+    required this.closingLine,
+    required this.sources,
+    required this.model,
+    required this.status,
+    required this.confidence,
+    required this.generatedAt,
+  });
+
+  final String id;
+  final String type;
+  final String subject;
+  final String sport;
+  final String era;
+  final String title;
+  final String subtitle;
+  final List<VaultLegendSection> sections;
+  final List<String> byTheNumbers;
+  final String pullQuote;
+  final String closingLine;
+  final List<String> sources;
+  final String model;
+
+  /// "draft" | "published"
+  final String status;
+
+  /// "researched" | "verified" | etc.
+  final String confidence;
+
+  final DateTime? generatedAt;
+
+  bool get isDraft => status == 'draft';
+
+  factory VaultLegend.fromJson(Map<String, dynamic> j) => VaultLegend(
+    id: j['id']?.toString() ?? '',
+    type: j['type']?.toString() ?? 'legend',
+    subject: j['subject']?.toString() ?? '',
+    sport: j['sport']?.toString() ?? '',
+    era: j['era']?.toString() ?? '',
+    title: j['title']?.toString() ?? '',
+    subtitle: j['subtitle']?.toString() ?? '',
+    sections: ((j['sections'] as List<dynamic>?) ?? <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(VaultLegendSection.fromJson)
+        .toList(),
+    byTheNumbers: _toStringList(j['byTheNumbers']),
+    pullQuote: j['pullQuote']?.toString() ?? '',
+    closingLine: j['closingLine']?.toString() ?? '',
+    sources: _toStringList(j['sources']),
+    model: j['model']?.toString() ?? '',
+    status: j['status']?.toString() ?? 'draft',
+    confidence: j['confidence']?.toString() ?? 'researched',
+    generatedAt: _toDate(j['generatedAt']),
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Recruits
 // ---------------------------------------------------------------------------
 

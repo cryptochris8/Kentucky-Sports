@@ -3,8 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../app/theme/colors.dart';
 
-/// The bottom-navigation shell hosting the five primary tabs:
-/// Pulse · Gameday · Stats · Pipeline · Profile.
+/// The bottom-navigation shell hosting the six primary tabs:
+/// Pulse · Gameday · Stats · Pipeline · Vault · Profile.
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.navigationShell});
 
@@ -15,6 +15,7 @@ class AppShell extends StatelessWidget {
     _NavDest('Gameday', Icons.stadium_outlined, Icons.stadium_rounded),
     _NavDest('Stats', Icons.insights_outlined, Icons.insights_rounded),
     _NavDest('Pipeline', Icons.account_tree_outlined, Icons.account_tree_rounded),
+    _NavDest('Vault', Icons.lock_open_outlined, Icons.lock_open_rounded),
     _NavDest('Profile', Icons.person_outline_rounded, Icons.person_rounded),
   ];
 
