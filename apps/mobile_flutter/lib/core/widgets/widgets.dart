@@ -3,6 +3,7 @@ library;
 
 export 'bg_card.dart';
 export 'brand_mark.dart';
+export 'broadcast_widgets.dart';
 export 'confidence_label.dart';
 export 'glass_nav_bar.dart';
 export 'percentile_bar.dart';

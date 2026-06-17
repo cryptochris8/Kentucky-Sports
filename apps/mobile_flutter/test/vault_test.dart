@@ -251,6 +251,16 @@ void main() {
       // Rupp legend card title visible
       expect(find.text('The Baron of the Bluegrass'), findsOneWidget);
 
+      // The editorial masthead + feature rail are tall, so the Season Timeline
+      // sits below the fold in the test viewport. Scroll the football season
+      // row into view, then assert the record + season label render.
+      await tester.scrollUntilVisible(
+        find.text('5-7'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
       // Season record row visible (football is default)
       expect(find.text('5-7'), findsOneWidget);
       expect(find.text('2025'), findsOneWidget);

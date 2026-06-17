@@ -18,7 +18,10 @@ class PredictionCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
+    final Color muted = scheme.onSurfaceVariant;
     final Map<String, String> picks = ref.watch(localPicksProvider);
     final String? selected = picks[prediction.id];
     final bool locked = !prediction.isOpen;
@@ -39,7 +42,7 @@ class PredictionCard extends ConsumerWidget {
               const SizedBox(width: 8),
               Pill(
                 label: Fmt.sportLabel(prediction.sport),
-                color: BgColors.deepBlue,
+                color: scheme.primary,
                 dense: true,
               ),
               const Spacer(),
@@ -48,14 +51,12 @@ class PredictionCard extends ConsumerWidget {
                   Icon(
                     locked ? Icons.lock_rounded : Icons.schedule_rounded,
                     size: 13,
-                    color: locked ? BgColors.mist : BgColors.slate,
+                    color: muted,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     locked ? 'Closed' : Fmt.closesIn(prediction.closesAt),
-                    style: text.labelSmall?.copyWith(
-                      color: locked ? BgColors.mist : BgColors.slate,
-                    ),
+                    style: text.labelSmall?.copyWith(color: muted),
                   ),
                 ],
               ),
@@ -63,6 +64,9 @@ class PredictionCard extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           Text(prediction.question, style: text.titleLarge),
+          const SizedBox(height: 8),
+          // Thin gold rule — the broadcast "banner" cue under the prompt.
+          const GoldRule(width: 44),
           const SizedBox(height: 14),
           ...prediction.options.map((PredictionOption opt) {
             final bool isSelected = selected == opt.id;
@@ -117,7 +121,10 @@ class PredictionCard extends ConsumerWidget {
   }
 }
 
-class _OptionButton extends StatelessWidget {
+/// A pick option button. Theme-aware (legible in light + dark) with a quick
+/// springy press cue on the active selection — the broadcast skin's punchy
+/// feedback. Reduce-motion aware.
+class _OptionButton extends StatefulWidget {
   const _OptionButton({
     required this.label,
     required this.selected,
@@ -131,15 +138,33 @@ class _OptionButton extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
+  State<_OptionButton> createState() => _OptionButtonState();
+}
+
+class _OptionButtonState extends State<_OptionButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    final Color border = selected ? BgColors.deepBlue : BgColors.hairline;
-    final Color fill =
-        selected ? BgColors.deepBlue.withValues(alpha: 0.08) : BgColors.surface;
-    return Material(
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final bool reduceMotion =
+        MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final bool selected = widget.selected;
+    final Color border = selected ? scheme.primary : scheme.outline;
+    final Color fill = selected
+        ? scheme.primary.withValues(alpha: 0.10)
+        : scheme.surface;
+    final Color labelColor =
+        widget.locked ? scheme.onSurfaceVariant : scheme.onSurface;
+
+    final Widget button = Material(
       color: fill,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        onTap: onTap,
+        onTap: widget.onTap,
+        onTapDown: widget.onTap == null ? null : (_) => _set(true),
+        onTapCancel: () => _set(false),
+        onTapUp: (_) => _set(false),
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
@@ -154,15 +179,15 @@ class _OptionButton extends StatelessWidget {
                     ? Icons.radio_button_checked_rounded
                     : Icons.radio_button_unchecked_rounded,
                 size: 18,
-                color: selected ? BgColors.deepBlue : BgColors.mist,
+                color: selected ? scheme.primary : scheme.onSurfaceVariant,
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  label,
+                  widget.label,
                   style: TextStyle(
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                    color: locked ? BgColors.slate : BgColors.ink,
+                    color: labelColor,
                     fontSize: 14,
                   ),
                 ),
@@ -172,6 +197,19 @@ class _OptionButton extends StatelessWidget {
         ),
       ),
     );
+
+    if (reduceMotion || widget.onTap == null) return button;
+    return AnimatedScale(
+      scale: _pressed ? 0.97 : 1.0,
+      duration: const Duration(milliseconds: 110),
+      curve: Curves.easeOutBack,
+      child: button,
+    );
+  }
+
+  void _set(bool value) {
+    if (widget.onTap == null) return;
+    if (_pressed != value) setState(() => _pressed = value);
   }
 }
 

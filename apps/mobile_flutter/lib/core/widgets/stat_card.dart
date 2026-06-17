@@ -230,7 +230,16 @@ class CompareRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
+    // Theme-aware so the compare numbers read in light AND dark: the winning
+    // side uses the brand primary / gold accent, the trailing side dims to the
+    // muted on-surface color (instead of literal navy that vanished in dark).
+    final Color kyColor =
+        kentuckyWins ? scheme.primary : scheme.onSurfaceVariant;
+    final Color oppColor =
+        !kentuckyWins ? scheme.tertiary : scheme.onSurfaceVariant;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -239,10 +248,7 @@ class CompareRow extends StatelessWidget {
             child: Text(
               kentuckyText,
               textAlign: TextAlign.start,
-              style: BgTypography.statNumber(
-                kentuckyWins ? BgColors.deepBlue : BgColors.mist,
-                size: 18,
-              ),
+              style: BgTypography.broadcast(kyColor, fontSize: 20),
             ),
           ),
           Expanded(
@@ -258,9 +264,9 @@ class CompareRow extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    _dot(kentuckyWins, BgColors.deepBlue),
+                    _dot(kentuckyWins, scheme.primary, scheme.outline),
                     const SizedBox(width: 10),
-                    _dot(!kentuckyWins, BgColors.bluegrassGold),
+                    _dot(!kentuckyWins, scheme.tertiary, scheme.outline),
                   ],
                 ),
               ],
@@ -270,10 +276,7 @@ class CompareRow extends StatelessWidget {
             child: Text(
               opponentText,
               textAlign: TextAlign.end,
-              style: BgTypography.statNumber(
-                !kentuckyWins ? BgColors.goldDark : BgColors.mist,
-                size: 18,
-              ),
+              style: BgTypography.broadcast(oppColor, fontSize: 20),
             ),
           ),
         ],
@@ -281,13 +284,13 @@ class CompareRow extends StatelessWidget {
     );
   }
 
-  Widget _dot(bool active, Color color) {
+  Widget _dot(bool active, Color color, Color inactive) {
     return Container(
       width: 8,
       height: 8,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: active ? color : BgColors.hairline,
+        color: active ? color : inactive,
       ),
     );
   }

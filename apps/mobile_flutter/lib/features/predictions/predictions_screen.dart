@@ -269,13 +269,16 @@ class _LeaderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
     final bool isMe = user.id == AppConfig.demoUserId;
     final LevelInfo info = levelInfoForXp(user.xp);
 
     return BgCard(
-      color: isMe ? BgColors.blueTint : BgColors.surface,
-      borderColor: isMe ? BgColors.deepBlue : null,
+      // Theme-aware "me" highlight so the row reads in light AND dark.
+      color: isMe ? scheme.primary.withValues(alpha: 0.10) : scheme.surface,
+      borderColor: isMe ? scheme.primary : null,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: <Widget>[
@@ -286,13 +289,16 @@ class _LeaderRow extends StatelessWidget {
                 : Text(
                     '$rank',
                     textAlign: TextAlign.center,
-                    style: BgTypography.statNumber(BgColors.slate, size: 18),
+                    style: BgTypography.broadcast(
+                      scheme.onSurfaceVariant,
+                      fontSize: 18,
+                    ),
                   ),
           ),
           const SizedBox(width: 8),
           CircleAvatar(
             radius: 18,
-            backgroundColor: BgColors.deepBlue,
+            backgroundColor: scheme.primary,
             child: Text(
               user.displayName.isNotEmpty
                   ? user.displayName[0].toUpperCase()
@@ -332,7 +338,7 @@ class _LeaderRow extends StatelessWidget {
             children: <Widget>[
               Text(
                 Fmt.number(user.xp),
-                style: BgTypography.statNumber(BgColors.deepBlue, size: 18),
+                style: BgTypography.broadcast(scheme.primary, fontSize: 20),
               ),
               Text('XP', style: text.labelSmall),
             ],

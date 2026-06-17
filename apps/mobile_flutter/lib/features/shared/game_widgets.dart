@@ -6,22 +6,44 @@ import '../../core/models/models.dart';
 import '../../core/utils/format.dart';
 import '../../core/widgets/widgets.dart';
 
-/// A matchup hero card: Kentucky vs opponent with a deep-blue gradient,
-/// venue/time, broadcast, and (for finals) the final score.
+/// Visual treatment for [MatchupHero].
+///
+/// - [bento]: the original soft-gradient card used on the Bento Home and team
+///   pages. Its look is intentionally preserved.
+/// - [broadcast]: the "Modern Broadcast" scorebug treatment (Pass 3) used on the
+///   Gameday surfaces — a navy lower-third panel, big SOLID Oswald scores
+///   (count-up on finals), and a thin gold rule. High-contrast in light + dark.
+enum MatchupHeroVariant { bento, broadcast }
+
+/// A matchup hero card: Kentucky vs opponent with venue/time, broadcast, and
+/// (for finals) the final score.
+///
+/// Two skins via [variant]: the default [MatchupHeroVariant.bento] (the soft
+/// gradient card kept for Home/team pages) and [MatchupHeroVariant.broadcast]
+/// (the navy scorebug used on Gameday).
 class MatchupHero extends StatelessWidget {
   const MatchupHero({
     super.key,
     required this.game,
     this.headline,
     this.onTap,
+    this.variant = MatchupHeroVariant.bento,
   });
 
   final Game game;
   final String? headline;
   final VoidCallback? onTap;
+  final MatchupHeroVariant variant;
 
   @override
   Widget build(BuildContext context) {
+    if (variant == MatchupHeroVariant.broadcast) {
+      return _BroadcastMatchupHero(
+        game: game,
+        headline: headline,
+        onTap: onTap,
+      );
+    }
     final TextTheme text = Theme.of(context).textTheme;
     final bool isFinal = game.isFinal;
 
@@ -151,6 +173,229 @@ class MatchupHero extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// The "Modern Broadcast" matchup scorebug — a navy lower-third panel with big
+/// SOLID Oswald scores (count-up on finals) and a thin gold rule. Reads as a
+/// premium broadcast surface in BOTH light and dark mode.
+class _BroadcastMatchupHero extends StatelessWidget {
+  const _BroadcastMatchupHero({
+    required this.game,
+    required this.headline,
+    required this.onTap,
+  });
+
+  final Game game;
+  final String? headline;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme text = Theme.of(context).textTheme;
+    final bool isFinal = game.isFinal;
+
+    return BroadcastPanel(
+      padding: const EdgeInsets.all(18),
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          // Status strip — sport · rivalry · broadcast/FINAL, broadcast-styled.
+          Row(
+            children: <Widget>[
+              BroadcastChip(
+                label: Fmt.sportLabel(game.sport),
+                color: Colors.white,
+              ),
+              const SizedBox(width: 8),
+              if (game.rivalry != null)
+                BroadcastChip(
+                  label: game.rivalry!,
+                  color: BgColors.goldBright,
+                  icon: Icons.local_fire_department_rounded,
+                ),
+              const Spacer(),
+              if (isFinal)
+                BroadcastChip(label: 'Final', color: Colors.white)
+              else
+                BroadcastChip(
+                  label: game.broadcast,
+                  color: Colors.white,
+                  icon: Icons.live_tv_rounded,
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const GoldRule(width: 64),
+          const SizedBox(height: 14),
+          // The scoreline — big solid score numbers, broadcast face.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Expanded(
+                child: _BroadcastTeamRow(
+                  name: 'Kentucky',
+                  short: 'UK',
+                  score: isFinal ? game.kentuckyScore : null,
+                  isWinner: isFinal && game.kentuckyWon,
+                  accent: BgColors.goldBright,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      isFinal ? '–' : 'VS',
+                      style: BgTypography.broadcast(
+                        Colors.white.withValues(alpha: 0.55),
+                        fontSize: 22,
+                      ),
+                    ),
+                    if (game.isHome && !isFinal)
+                      Text(
+                        'HOME',
+                        style: text.labelSmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: _BroadcastTeamRow(
+                  name: game.opponentName,
+                  short: game.opponentShort,
+                  score: isFinal ? game.opponentScore : null,
+                  isWinner: isFinal && !game.kentuckyWon,
+                  accent: Colors.white,
+                  alignEnd: true,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+            ),
+            child: Row(
+              children: <Widget>[
+                const Icon(Icons.event_rounded, size: 15, color: Colors.white),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    isFinal
+                        ? Fmt.dayMonthYear(game.startTime)
+                        : Fmt.gameDateTime(game.startTime),
+                    style: text.bodySmall?.copyWith(color: Colors.white),
+                  ),
+                ),
+                const Icon(Icons.place_rounded, size: 15, color: Colors.white),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    game.venue,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.bodySmall?.copyWith(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (headline != null) ...<Widget>[
+            const SizedBox(height: 12),
+            Text(
+              headline!,
+              style: text.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.95),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// One team line inside the broadcast scorebug: jersey/short tile + name, and
+/// (for finals) a big SOLID count-up score in the broadcast face.
+class _BroadcastTeamRow extends StatelessWidget {
+  const _BroadcastTeamRow({
+    required this.name,
+    required this.short,
+    required this.score,
+    required this.isWinner,
+    required this.accent,
+    this.alignEnd = false,
+  });
+
+  final String name;
+  final String short;
+  final int? score;
+  final bool isWinner;
+  final Color accent;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget badge = Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.6), width: 1.6),
+      ),
+      child: Center(
+        child: Text(
+          short,
+          style: BgTypography.broadcast(Colors.white, fontSize: 18),
+        ),
+      ),
+    );
+    final Widget nameText = Flexible(
+      child: Text(
+        name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment:
+          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          mainAxisAlignment:
+              alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
+          children: alignEnd
+              ? <Widget>[nameText, const SizedBox(width: 10), badge]
+              : <Widget>[badge, const SizedBox(width: 10), nameText],
+        ),
+        if (score != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: CountUpScore(
+              value: score!,
+              size: 48,
+              color: isWinner ? BgColors.goldBright : Colors.white,
+            ),
+          ),
+      ],
     );
   }
 }

@@ -104,7 +104,9 @@ class _PollCardState extends ConsumerState<PollCard> {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final Color accent = theme.colorScheme.primary;
+    final TextTheme text = theme.textTheme;
     final Poll poll = widget.poll;
     // Add 1 to reflect the user's local vote in the displayed totals.
     final int totalVotes = poll.totalVotes + (_voted != null ? 1 : 0);
@@ -115,9 +117,9 @@ class _PollCardState extends ConsumerState<PollCard> {
         children: <Widget>[
           Row(
             children: <Widget>[
-              const Icon(Icons.poll_rounded, size: 18, color: BgColors.deepBlue),
+              Icon(Icons.poll_rounded, size: 18, color: accent),
               const SizedBox(width: 6),
-              Text('FAN POLL', style: BgTypography.eyebrow(BgColors.deepBlue)),
+              Text('FAN POLL', style: BgTypography.eyebrow(accent)),
               const Spacer(),
               Text('${Fmt.number(totalVotes)} votes', style: text.labelSmall),
             ],
@@ -171,6 +173,7 @@ class _PollOptionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
@@ -182,7 +185,7 @@ class _PollOptionRow extends StatelessWidget {
               Icon(
                 mine ? Icons.check_circle_rounded : Icons.circle_outlined,
                 size: 16,
-                color: mine ? BgColors.deepBlue : BgColors.mist,
+                color: mine ? scheme.primary : scheme.onSurfaceVariant,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -191,7 +194,7 @@ class _PollOptionRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: mine ? FontWeight.w700 : FontWeight.w600,
-                    color: BgColors.ink,
+                    color: scheme.onSurface,
                   ),
                 ),
               ),
@@ -201,7 +204,7 @@ class _PollOptionRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: mine ? BgColors.deepBlue : BgColors.slate,
+                    color: mine ? scheme.primary : scheme.onSurfaceVariant,
                   ),
                 ),
             ],
@@ -211,7 +214,7 @@ class _PollOptionRow extends StatelessWidget {
             MeterBar(
               value: pct,
               height: 7,
-              color: mine ? BgColors.deepBlue : BgColors.blueBright,
+              color: mine ? scheme.primary : scheme.secondary,
             ),
           ],
         ],

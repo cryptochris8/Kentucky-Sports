@@ -5,6 +5,7 @@ import 'package:stats_engine/stats_engine.dart';
 
 import '../../app/router.dart';
 import '../../app/theme/colors.dart';
+import '../../app/theme/theme.dart';
 import '../../app/theme/typography.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/app_providers.dart';
@@ -158,13 +159,19 @@ class _PregameSection extends ConsumerWidget {
         const SizedBox(height: 12),
         summary.when(
           loading: () => const BgCard(child: LoadingView()),
-          error: (Object e, _) =>
-              MatchupHero(game: game), // hero still renders without summary
+          error: (Object e, _) => MatchupHero(
+            game: game,
+            variant: MatchupHeroVariant.broadcast,
+          ), // hero still renders without summary
           data: (GameSummary? s) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                MatchupHero(game: game, headline: s?.headline),
+                MatchupHero(
+                  game: game,
+                  headline: s?.headline,
+                  variant: MatchupHeroVariant.broadcast,
+                ),
                 const SizedBox(height: 12),
                 CountdownStrip(target: game.startTime),
                 if (s != null) ...<Widget>[
@@ -224,44 +231,62 @@ class _MatchupVerdict extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ({String label, Color color, IconData icon}) v = _verdict;
-    final TextTheme text = Theme.of(context).textTheme;
-    return BgCard(
+    // Win-probability win-bar tint: gold for the leader, white for the trailer.
+    final bool kyAhead = summary.kentuckyWinProb >= summary.opponentWinProb;
+    return BroadcastPanel(
+      eyebrow: 'Matchup Verdict',
+      eyebrowIcon: Icons.insights_rounded,
+      trailing: BroadcastChip(
+        label: v.label,
+        color: BgColors.goldBright,
+        icon: v.icon,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          // Win probability — the score-forward stat strip (big solid Oswald).
           Row(
-            children: <Widget>[
-              Icon(v.icon, color: v.color),
-              const SizedBox(width: 8),
-              Text('Matchup Verdict', style: text.titleMedium),
-              const Spacer(),
-              Pill(label: v.label, color: v.color),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Expanded(
-                child: _WinProb(
-                  label: 'Kentucky',
-                  prob: summary.kentuckyWinProb,
-                  color: BgColors.deepBlue,
+                child: BroadcastStat(
+                  label: 'Kentucky Win',
+                  value: Fmt.percent(summary.kentuckyWinProb),
+                  valueColor:
+                      kyAhead ? BgColors.goldBright : Colors.white,
+                  meter: summary.kentuckyWinProb,
+                  meterColor:
+                      kyAhead ? BgColors.goldBright : Colors.white,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
-                child: _WinProb(
-                  label: 'Opponent',
-                  prob: summary.opponentWinProb,
-                  color: BgColors.bluegrassGold,
+                child: BroadcastStat(
+                  label: 'Opponent Win',
+                  value: Fmt.percent(summary.opponentWinProb),
+                  valueColor:
+                      kyAhead ? Colors.white : BgColors.goldBright,
+                  meter: summary.opponentWinProb,
+                  meterColor:
+                      kyAhead ? Colors.white : BgColors.goldBright,
+                  alignEnd: true,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(summary.statStory, style: text.bodyMedium),
-          const Divider(height: 22),
-          SourceConfidenceRow(
+          const SizedBox(height: 14),
+          Text(
+            summary.statStory,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.92),
+              fontSize: 14,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 14),
+          // Attribution stays on every stat card (hard rule) — on a light strip
+          // so the required source/confidence labels keep their AA contrast.
+          _AttributionStrip(
             source: summary.source,
             updatedAt: summary.updatedAt,
             confidence: summary.confidence,
@@ -272,35 +297,38 @@ class _MatchupVerdict extends StatelessWidget {
   }
 }
 
-class _WinProb extends StatelessWidget {
-  const _WinProb({required this.label, required this.prob, required this.color});
+/// A light rounded strip that hosts the required [SourceConfidenceRow] inside a
+/// dark broadcast panel, so the muted attribution text keeps AA contrast.
+class _AttributionStrip extends StatelessWidget {
+  const _AttributionStrip({
+    required this.source,
+    required this.updatedAt,
+    required this.confidence,
+  });
 
-  final String label;
-  final double prob;
-  final Color color;
+  final String source;
+  final DateTime? updatedAt;
+  final String confidence;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(label, style: BgTypography.eyebrow(BgColors.slate)),
-        const SizedBox(height: 4),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: <Widget>[
-            Text(
-              Fmt.percent(prob),
-              style: BgTypography.statNumber(color, size: 26),
-            ),
-            const SizedBox(width: 4),
-            Text('win', style: Theme.of(context).textTheme.bodySmall),
-          ],
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      // Force a light scheme so the muted attribution text + confidence pill
+      // keep AA contrast on this white strip, even when the app is in dark mode.
+      child: Theme(
+        data: BgTheme.light(),
+        child: SourceConfidenceRow(
+          source: source,
+          updatedAt: updatedAt,
+          confidence: confidence,
         ),
-        const SizedBox(height: 6),
-        MeterBar(value: prob, color: color, height: 8),
-      ],
+      ),
     );
   }
 }
@@ -577,12 +605,8 @@ class _PredictionsTab extends ConsumerWidget {
                   child: PredictionCard(prediction: p),
                 ),
             const SizedBox(height: 8),
-            BgCard(
-              gradient: const LinearGradient(
-                colors: <Color>[BgColors.blueMid, BgColors.deepBlue],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
+            BroadcastPanel(
+              padding: const EdgeInsets.all(14),
               onTap: () => context.push(Routes.predictions),
               child: Row(
                 children: <Widget>[
@@ -590,8 +614,11 @@ class _PredictionsTab extends ConsumerWidget {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
+                      color: Colors.white.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: BgColors.goldBright.withValues(alpha: 0.5),
+                      ),
                     ),
                     child: const Icon(Icons.leaderboard_rounded,
                         color: BgColors.goldBright),
@@ -605,7 +632,9 @@ class _PredictionsTab extends ConsumerWidget {
                           'PREDICTION CENTER',
                           style: BgTypography.eyebrow(BgColors.goldBright),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
+                        const GoldRule(width: 40),
+                        const SizedBox(height: 6),
                         Text(
                           'All open picks, results & the season leaderboard',
                           style: text.titleMedium?.copyWith(color: Colors.white),
@@ -657,6 +686,7 @@ class _PostgameSection extends ConsumerWidget {
             ),
             MatchupHero(
               game: game,
+              variant: MatchupHeroVariant.broadcast,
               headline: game.kentuckyWon
                   ? 'Cats take care of business at home.'
                   : 'Tough one at Kroger Field.',
@@ -879,8 +909,9 @@ class _OffseasonView extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         lastFinal.maybeWhen(
-          data: (Game? g) =>
-              g == null ? const SizedBox.shrink() : MatchupHero(game: g),
+          data: (Game? g) => g == null
+              ? const SizedBox.shrink()
+              : MatchupHero(game: g, variant: MatchupHeroVariant.broadcast),
           orElse: () => const SizedBox.shrink(),
         ),
       ],

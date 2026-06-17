@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:stats_engine/stats_engine.dart';
 
-import '../../app/theme/colors.dart';
 import '../../app/theme/typography.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/app_providers.dart';
@@ -166,7 +165,9 @@ class _FourFactorCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FourFactor f = value.factor;
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
     return BgCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -176,12 +177,13 @@ class _FourFactorCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: BgColors.blueTint,
+                  color: scheme.primary.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(10),
                 ),
+                // Weight in the condensed broadcast face — a solid accent stat.
                 child: Text(
                   '${(f.weight * 100).round()}%',
-                  style: BgTypography.statNumber(BgColors.deepBlue, size: 14),
+                  style: BgTypography.broadcast(scheme.primary, fontSize: 15),
                 ),
               ),
               const SizedBox(width: 10),
@@ -191,7 +193,7 @@ class _FourFactorCard extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       f.fanLabel.toUpperCase(),
-                      style: BgTypography.eyebrow(BgColors.deepBlue),
+                      style: BgTypography.eyebrow(scheme.primary),
                     ),
                     Text(f.title, style: text.titleMedium),
                   ],
@@ -199,7 +201,7 @@ class _FourFactorCard extends StatelessWidget {
               ),
               Text(
                 value.display,
-                style: BgTypography.statNumber(BgColors.deepBlue, size: 24),
+                style: BgTypography.broadcast(scheme.primary, fontSize: 26),
               ),
             ],
           ),
@@ -209,14 +211,14 @@ class _FourFactorCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: BgColors.canvas,
+              color: scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Icon(Icons.lightbulb_outline_rounded,
-                    size: 15, color: BgColors.bluegrassGold),
+                Icon(Icons.lightbulb_outline_rounded,
+                    size: 15, color: scheme.tertiary),
                 const SizedBox(width: 6),
                 Expanded(child: Text(f.explanation, style: text.bodySmall)),
               ],
@@ -394,7 +396,9 @@ class _CompareCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
     final TeamComparison c = summary.teamComparison;
     final List<String> keys = c.kentucky.keys
         .where((String k) => c.opponent.containsKey(k))
@@ -408,9 +412,12 @@ class _CompareCard extends StatelessWidget {
           const SizedBox(height: 4),
           Row(
             children: <Widget>[
-              Text('Kentucky', style: BgTypography.eyebrow(BgColors.deepBlue)),
+              Text('Kentucky', style: BgTypography.eyebrow(scheme.primary)),
               const Spacer(),
-              Text('Opponent', style: BgTypography.eyebrow(BgColors.goldDark)),
+              Text(
+                'Opponent',
+                style: BgTypography.eyebrow(scheme.onSurfaceVariant),
+              ),
             ],
           ),
           const Divider(height: 16),
@@ -430,7 +437,7 @@ class _CompareCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: BgColors.canvas,
+              color: scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(summary.statStory, style: text.bodySmall),
