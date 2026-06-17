@@ -9,6 +9,8 @@ import { DashboardPage } from './pages/DashboardPage';
 import { GamesPage } from './pages/GamesPage';
 import { PredictionsPage } from './pages/PredictionsPage';
 import { NewsPage } from './pages/NewsPage';
+import { VaultLegendsPage } from './pages/VaultLegendsPage';
+import { VaultLegendEditorPage } from './pages/VaultLegendEditorPage';
 import { ModerationPage } from './pages/ModerationPage';
 import { SyncHealthPage } from './pages/SyncHealthPage';
 
@@ -58,6 +60,22 @@ export default function App() {
               element={
                 <RoleGuard allow={[...EDITOR_ROLES]}>
                   <NewsPage />
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="vault"
+              element={
+                <RoleGuard allow={[...EDITOR_ROLES]}>
+                  <VaultLegendsPage />
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="vault/:id"
+              element={
+                <RoleGuard allow={[...EDITOR_ROLES]}>
+                  <VaultLegendEditorPage />
                 </RoleGuard>
               }
             />

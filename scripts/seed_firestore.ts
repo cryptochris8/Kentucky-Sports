@@ -8,14 +8,18 @@
  * Safety: refuses to run against production unless SEED_ALLOW_PROD=true is set.
  * ISO-8601 datetime strings in the seed are converted to Firestore Timestamps.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { dirname, resolve, join } from "node:path";
 import { initializeApp } from "firebase-admin/app";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { getFirestore, Timestamp, type Firestore } from "firebase-admin/firestore";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SEED_PATH = resolve(__dirname, "../seed_data/dev_seed.json");
+const SEED_DIR = resolve(__dirname, "../seed_data");
+const SEED_PATH = resolve(SEED_DIR, "dev_seed.json");
+const VAULT_LEGENDS_PATH = resolve(SEED_DIR, "vault_legends.json");
+const VAULT_SEASONS_PATH = resolve(SEED_DIR, "vault_seasons.json");
+const LEGEND_BRIEFS_DIR = resolve(SEED_DIR, "legend_briefs");
 const PROJECT_ID = process.env.GCLOUD_PROJECT ?? "bluegrass-gameday-dev";
 
 const usingEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
@@ -43,45 +47,103 @@ function convertTimestamps(value: unknown): unknown {
   return value;
 }
 
+/**
+ * Write an array of docs (each must carry an `id`) into a Firestore collection,
+ * converting ISO timestamps and batching in chunks. Returns the number written.
+ */
+async function loadCollection(
+  db: Firestore,
+  collection: string,
+  docs: unknown[]
+): Promise<number> {
+  let batch = db.batch();
+  let opCount = 0;
+  let written = 0;
+  for (const doc of docs) {
+    const { id, ...data } = (doc ?? {}) as Record<string, any>;
+    if (!id) {
+      console.warn(`  ! ${collection}: skipping a doc with no "id" field`);
+      continue;
+    }
+    batch.set(
+      db.collection(collection).doc(String(id)),
+      { ...(convertTimestamps(data) as object), seedLoadedAt: Timestamp.now() },
+      { merge: true }
+    );
+    opCount++;
+    written++;
+    if (opCount >= 400) {
+      await batch.commit();
+      batch = db.batch();
+      opCount = 0;
+    }
+  }
+  if (opCount > 0) await batch.commit();
+  console.log(`  ✓ ${collection.padEnd(20)} ${written} docs`);
+  return written;
+}
+
+/** Read an array of docs from a JSON file under a given key (e.g. `.vault_legends`). */
+function readArrayFile(path: string, key: string): unknown[] {
+  if (!existsSync(path)) {
+    console.warn(`  ! ${key}: file not found, skipping (${path})`);
+    return [];
+  }
+  const raw = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+  const arr = raw[key];
+  return Array.isArray(arr) ? arr : [];
+}
+
+/** Read every *.json file in a directory; each file is a single doc carrying an `id`. */
+function readDocsDir(dir: string): unknown[] {
+  if (!existsSync(dir)) {
+    console.warn(`  ! legend_briefs: directory not found, skipping (${dir})`);
+    return [];
+  }
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")) as unknown);
+}
+
 async function main() {
   initializeApp({ projectId: PROJECT_ID });
   const db = getFirestore();
 
-  const raw = JSON.parse(readFileSync(SEED_PATH, "utf8")) as Record<string, any>;
-  const collections = Object.keys(raw).filter((k) => k !== "_meta");
-
   console.log(`Seeding project "${PROJECT_ID}" (${usingEmulator ? "emulator" : "REAL PROJECT"})`);
 
   let totalDocs = 0;
+  let collectionCount = 0;
+
+  // ── dev_seed.json (existing behavior, unchanged) ──────────────────────────
+  const raw = JSON.parse(readFileSync(SEED_PATH, "utf8")) as Record<string, any>;
+  const collections = Object.keys(raw).filter((k) => k !== "_meta");
   for (const collection of collections) {
     const docs = raw[collection];
     if (!Array.isArray(docs)) continue;
-    let batch = db.batch();
-    let opCount = 0;
-    for (const doc of docs) {
-      const { id, ...data } = doc;
-      if (!id) {
-        console.warn(`  ! ${collection}: skipping a doc with no "id" field`);
-        continue;
-      }
-      batch.set(
-        db.collection(collection).doc(String(id)),
-        { ...(convertTimestamps(data) as object), seedLoadedAt: Timestamp.now() },
-        { merge: true }
-      );
-      opCount++;
-      totalDocs++;
-      if (opCount >= 400) {
-        await batch.commit();
-        batch = db.batch();
-        opCount = 0;
-      }
-    }
-    if (opCount > 0) await batch.commit();
-    console.log(`  ✓ ${collection.padEnd(20)} ${docs.length} docs`);
+    totalDocs += await loadCollection(db, collection, docs);
+    collectionCount++;
   }
 
-  console.log(`\nDone. Wrote ${totalDocs} documents across ${collections.length} collections.`);
+  // ── The Vault — legends, season records, and sourced briefs ───────────────
+  const vaultLegends = readArrayFile(VAULT_LEGENDS_PATH, "vault_legends");
+  if (vaultLegends.length) {
+    totalDocs += await loadCollection(db, "vault_legends", vaultLegends);
+    collectionCount++;
+  }
+
+  const vaultSeasons = readArrayFile(VAULT_SEASONS_PATH, "vault_seasons");
+  if (vaultSeasons.length) {
+    totalDocs += await loadCollection(db, "vault_seasons", vaultSeasons);
+    collectionCount++;
+  }
+
+  const legendBriefs = readDocsDir(LEGEND_BRIEFS_DIR);
+  if (legendBriefs.length) {
+    totalDocs += await loadCollection(db, "legend_briefs", legendBriefs);
+    collectionCount++;
+  }
+
+  console.log(`\nDone. Wrote ${totalDocs} documents across ${collectionCount} collections.`);
   process.exit(0);
 }
 

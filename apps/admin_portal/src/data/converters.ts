@@ -6,7 +6,7 @@ import type {
   DocumentData,
   WithFieldValue,
 } from 'firebase/firestore';
-import type { Game, Prediction, CommunityPost, NewsCard, SyncRun } from './types';
+import type { Game, Prediction, CommunityPost, NewsCard, SyncRun, VaultLegend, LegendBrief } from './types';
 
 function withId<T extends object>(
   snap: QueryDocumentSnapshot,
@@ -46,4 +46,14 @@ export const newsCardConverter: FirestoreDataConverter<NewsCard> = {
 export const syncRunConverter: FirestoreDataConverter<SyncRun> = {
   toFirestore(run) { return toDoc(run); },
   fromFirestore(snap, opts) { return withId<SyncRun>(snap, opts); },
+};
+
+export const vaultLegendConverter: FirestoreDataConverter<VaultLegend> = {
+  toFirestore(legend) { return toDoc(legend); },
+  fromFirestore(snap, opts) { return withId<VaultLegend>(snap, opts); },
+};
+
+export const legendBriefConverter: FirestoreDataConverter<LegendBrief> = {
+  toFirestore(brief) { return toDoc(brief); },
+  fromFirestore(snap, opts) { return withId<LegendBrief>(snap, opts); },
 };

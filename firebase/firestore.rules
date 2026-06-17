@@ -116,6 +116,23 @@ service cloud.firestore {
       }
     }
 
+    // ---------- The Vault ----------
+    // Factual season records — public read, editor-managed writes.
+    match /vault_seasons/{id} {
+      allow read: if true;
+      allow create, update, delete: if isEditor();
+    }
+    // AI-drafted history features — public can read ONLY once published;
+    // editors see drafts/ready and manage all writes from the Vault editor.
+    match /vault_legends/{id} {
+      allow read: if resource.data.status == 'published' || isEditor();
+      allow create, update, delete: if isEditor();
+    }
+    // Sourced fact-sheet briefs — editor-only (grounds the fact-check guard).
+    match /legend_briefs/{id} {
+      allow read, write: if isEditor();
+    }
+
     // ---------- moderation / sync logs (admin + functions) ----------
     match /sync_runs/{runId} {
       allow read: if isAdmin();

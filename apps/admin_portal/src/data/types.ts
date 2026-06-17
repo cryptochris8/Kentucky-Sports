@@ -97,6 +97,46 @@ export interface NewsCard {
   createdAt?: Timestamp | string;
 }
 
+// ─── The Vault — Legends (AI-drafted history features) ──────────────────────────
+
+export type VaultLegendStatus = 'draft' | 'ready' | 'published';
+
+export interface VaultLegendSection {
+  heading: string;
+  body: string;
+}
+
+export interface VaultLegend {
+  id: string;
+  type: 'legend';
+  subject: string;
+  sport: Sport | string;
+  era: string;
+  title: string;
+  subtitle: string;
+  sections: VaultLegendSection[];
+  byTheNumbers: string[];
+  pullQuote: string;
+  closingLine: string;
+  sources: string[];
+  model: string;
+  status: VaultLegendStatus;
+  confidence: string;
+  generatedAt: Timestamp | string;
+  updatedAt?: Timestamp | string;
+  publishedAt?: Timestamp | string;
+}
+
+/** Sourced fact-sheet that grounds a legend (read-only context for the fact-check). */
+export interface LegendBrief {
+  id: string;
+  subject: string;
+  sport: Sport | string;
+  era: string;
+  facts: string[];
+  sources: string[];
+}
+
 export type SyncStatus = 'success' | 'error' | 'running' | 'partial';
 
 export interface SyncRun {

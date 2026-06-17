@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: '/games', label: 'Games', icon: '🏟' },
   { to: '/predictions', label: 'Predictions', icon: '🎯' },
   { to: '/news', label: 'News CMS', icon: '📰' },
+  { to: '/vault', label: 'Vault', icon: '📜' },
   { to: '/moderation', label: 'Moderation', icon: '🛡' },
   { to: '/sync', label: 'Sync Health', icon: '🔄' },
 ];
