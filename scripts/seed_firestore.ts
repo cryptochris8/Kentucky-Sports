@@ -7,6 +7,14 @@
  *
  * Safety: refuses to run against production unless SEED_ALLOW_PROD=true is set.
  * ISO-8601 datetime strings in the seed are converted to Firestore Timestamps.
+ *
+ * Editor-work protection: vault_legends docs whose stored status is no longer
+ * "draft" (an editor readied/published them in the admin portal) are SKIPPED so
+ * a routine re-seed never reverts human edits to the AI draft. Pass --force to
+ * overwrite them anyway.
+ *
+ * user_badges are written into users/{uid}/user_badges subcollections — the
+ * path the security rules cover — not a dead top-level collection.
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -21,6 +29,7 @@ const VAULT_LEGENDS_PATH = resolve(SEED_DIR, "vault_legends.json");
 const VAULT_SEASONS_PATH = resolve(SEED_DIR, "vault_seasons.json");
 const LEGEND_BRIEFS_DIR = resolve(SEED_DIR, "legend_briefs");
 const PROJECT_ID = process.env.GCLOUD_PROJECT ?? "bluegrass-gameday-dev";
+const FORCE = process.argv.includes("--force");
 
 const usingEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 if (!usingEmulator && process.env.SEED_ALLOW_PROD !== "true") {
@@ -83,6 +92,69 @@ async function loadCollection(
   return written;
 }
 
+/**
+ * Write user_badges into users/{uid}/user_badges subcollections — the path the
+ * security rules cover. (A top-level user_badges collection is unreadable dead
+ * data.) Each doc must carry `id` and `userId`.
+ */
+async function loadUserBadges(db: Firestore, docs: unknown[]): Promise<number> {
+  let batch = db.batch();
+  let opCount = 0;
+  let written = 0;
+  for (const doc of docs) {
+    const { id, userId, ...data } = (doc ?? {}) as Record<string, any>;
+    if (!id || !userId) {
+      console.warn(`  ! user_badges: skipping a doc with no "id"/"userId" field`);
+      continue;
+    }
+    batch.set(
+      db.collection("users").doc(String(userId)).collection("user_badges").doc(String(id)),
+      { userId, ...(convertTimestamps(data) as object), seedLoadedAt: Timestamp.now() },
+      { merge: true }
+    );
+    opCount++;
+    written++;
+    if (opCount >= 400) {
+      await batch.commit();
+      batch = db.batch();
+      opCount = 0;
+    }
+  }
+  if (opCount > 0) await batch.commit();
+  console.log(`  ✓ ${"users/*/user_badges".padEnd(20)} ${written} docs`);
+  return written;
+}
+
+/**
+ * Write vault_legends, skipping any doc whose stored status is no longer
+ * "draft" — an editor has readied/published it in the admin portal and a
+ * re-seed must never revert those edits to the AI draft. --force overrides.
+ */
+async function loadVaultLegends(db: Firestore, docs: unknown[], force: boolean): Promise<number> {
+  let written = 0;
+  for (const doc of docs) {
+    const { id, ...data } = (doc ?? {}) as Record<string, any>;
+    if (!id) {
+      console.warn(`  ! vault_legends: skipping a doc with no "id" field`);
+      continue;
+    }
+    const ref = db.collection("vault_legends").doc(String(id));
+    const existing = await ref.get();
+    const existingStatus = existing.exists ? (existing.data()?.status as string | undefined) : undefined;
+    if (!force && existingStatus && existingStatus !== "draft") {
+      console.log(`  - vault_legends/${id}: skipped (status "${existingStatus}" — editor work preserved; --force to overwrite)`);
+      continue;
+    }
+    await ref.set(
+      { ...(convertTimestamps(data) as object), seedLoadedAt: Timestamp.now() },
+      { merge: true }
+    );
+    written++;
+  }
+  console.log(`  ✓ ${"vault_legends".padEnd(20)} ${written} docs`);
+  return written;
+}
+
 /** Read an array of docs from a JSON file under a given key (e.g. `.vault_legends`). */
 function readArrayFile(path: string, key: string): unknown[] {
   if (!existsSync(path)) {
@@ -120,14 +192,18 @@ async function main() {
   for (const collection of collections) {
     const docs = raw[collection];
     if (!Array.isArray(docs)) continue;
-    totalDocs += await loadCollection(db, collection, docs);
+    if (collection === "user_badges") {
+      totalDocs += await loadUserBadges(db, docs);
+    } else {
+      totalDocs += await loadCollection(db, collection, docs);
+    }
     collectionCount++;
   }
 
   // ── The Vault — legends, season records, and sourced briefs ───────────────
   const vaultLegends = readArrayFile(VAULT_LEGENDS_PATH, "vault_legends");
   if (vaultLegends.length) {
-    totalDocs += await loadCollection(db, "vault_legends", vaultLegends);
+    totalDocs += await loadVaultLegends(db, vaultLegends, FORCE);
     collectionCount++;
   }
 

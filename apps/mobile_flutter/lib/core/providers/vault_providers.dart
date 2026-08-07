@@ -60,3 +60,13 @@ final vaultLegendByIdProvider =
   }
   return null;
 });
+
+/// A single vault season by id, or null if not found (deep-linkable detail).
+final vaultSeasonByIdProvider =
+    FutureProvider.family<VaultSeason?, String>((Ref ref, String id) async {
+  final List<VaultSeason> all = await ref.watch(vaultSeasonsProvider.future);
+  for (final VaultSeason s in all) {
+    if (s.id == id) return s;
+  }
+  return null;
+});

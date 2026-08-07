@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
 import {
   getVaultLegend,
   saveVaultLegend,
@@ -44,6 +44,12 @@ function toForm(l: VaultLegend): LegendForm {
 
 type Feedback = { kind: 'success' | 'error'; text: string } | null;
 
+/** Comparable key for a legend's updatedAt (Timestamp or legacy ISO string). */
+function updatedAtKey(ts: VaultLegend['updatedAt']): string | null {
+  if (!ts) return null;
+  return typeof ts === 'string' ? ts : String(ts.toMillis());
+}
+
 export function VaultLegendEditorPage() {
   const { id = '' } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -56,6 +62,12 @@ export function VaultLegendEditorPage() {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [blockers, setBlockers] = useState<string[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
+
+  // Optimistic-concurrency baseline: the updatedAt of the doc we loaded. Every
+  // write re-fetches and aborts when someone else saved in between, so two
+  // editors can't silently clobber each other's long-form work.
+  const baseUpdatedAt = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,6 +76,7 @@ export function VaultLegendEditorPage() {
       if (!l) { setError('Legend not found.'); return; }
       setLegend(l);
       setForm(toForm(l));
+      baseUpdatedAt.current = updatedAtKey(l.updatedAt);
       setError('');
       // Brief is best-effort context for the fact-check guard.
       try { setBrief(await getLegendBrief(id)); } catch { setBrief(null); }
@@ -130,23 +143,57 @@ export function VaultLegendEditorPage() {
   }, [form]);
 
   const publishCheck = useMemo(
-    () => (cleanForm ? checkPublishReady(cleanForm) : { ok: false, failures: [] }),
-    [cleanForm],
+    () => (cleanForm ? checkPublishReady(cleanForm, brief) : { ok: false, failures: [], warnings: [] }),
+    [cleanForm, brief],
   );
 
   // ─── Actions ────────────────────────────────────────────────────────────────
-  const persist = async (): Promise<boolean> => {
-    if (!cleanForm) return false;
-    await saveVaultLegend(id, cleanForm);
+
+  /**
+   * Optimistic-concurrency check: re-fetch and abort (with a clear message)
+   * when the doc changed since we loaded it. Returns false when the write must
+   * not proceed.
+   */
+  const assertUnchanged = async (): Promise<boolean> => {
+    const current = await getVaultLegend(id);
+    if (updatedAtKey(current?.updatedAt) !== baseUpdatedAt.current) {
+      setFeedback({
+        kind: 'error',
+        text: 'Not saved — someone else changed this legend since you opened it. Copy your edits somewhere safe, then reload the page to pick up the latest version.',
+      });
+      return false;
+    }
     return true;
   };
 
+  const clearNotices = () => { setFeedback(null); setBlockers([]); setWarnings([]); };
+
   const onSave = async () => {
-    setBusy(true); setFeedback(null); setBlockers([]);
+    if (!cleanForm) return;
+    clearNotices();
+    // A published legend is live in the app — a save ships immediately, so it
+    // must pass the same gate as publishing. Unpublish to park failing copy.
+    if (legend?.status === 'published') {
+      const check = checkPublishReady(cleanForm, brief);
+      if (!check.ok) {
+        setBlockers(check.failures);
+        setFeedback({
+          kind: 'error',
+          text: 'Not saved — this legend is live. Fix the blockers below, or unpublish to keep working in draft.',
+        });
+        return;
+      }
+    }
+    setBusy(true);
     try {
-      await persist();
-      await load();
-      setFeedback({ kind: 'success', text: 'Draft saved.' });
+      if (await assertUnchanged()) {
+        await saveVaultLegend(id, cleanForm);
+        await load();
+        setFeedback({
+          kind: 'success',
+          text: legend?.status === 'published' ? 'Saved — the live legend is updated.' : 'Draft saved.',
+        });
+      }
     } catch (err: unknown) {
       setFeedback({ kind: 'error', text: (err as { message?: string }).message ?? 'Save failed.' });
     } finally {
@@ -155,12 +202,16 @@ export function VaultLegendEditorPage() {
   };
 
   const onMarkReady = async () => {
-    setBusy(true); setFeedback(null); setBlockers([]);
+    if (!cleanForm) return;
+    clearNotices();
+    setBusy(true);
     try {
-      await persist();
-      await setLegendStatus(id, 'ready');
-      await load();
-      setFeedback({ kind: 'success', text: 'Saved and marked ready for review.' });
+      if (await assertUnchanged()) {
+        // Content + status transition in one write.
+        await setLegendStatus(id, 'ready', cleanForm);
+        await load();
+        setFeedback({ kind: 'success', text: 'Saved and marked ready for review.' });
+      }
     } catch (err: unknown) {
       setFeedback({ kind: 'error', text: (err as { message?: string }).message ?? 'Update failed.' });
     } finally {
@@ -169,19 +220,31 @@ export function VaultLegendEditorPage() {
   };
 
   const onPublish = async () => {
-    setFeedback(null);
-    const check = cleanForm ? checkPublishReady(cleanForm) : { ok: false, failures: ['Nothing to publish.'] };
-    if (!check.ok) {
+    clearNotices();
+    const check = cleanForm
+      ? checkPublishReady(cleanForm, brief)
+      : { ok: false, failures: ['Nothing to publish.'], warnings: [] };
+    if (!check.ok || !cleanForm) {
       setBlockers(check.failures);
       setFeedback({ kind: 'error', text: 'Cannot publish — resolve the blockers below.' });
       return;
     }
-    setBusy(true); setBlockers([]);
+    // Advisory warnings (warn-tier wording, unverified numbers) are surfaced
+    // prominently here — the editor decides, but has to look them in the eye.
+    setWarnings(check.warnings);
+    if (check.warnings.length > 0) {
+      const proceed = window.confirm(
+        `Review before publishing:\n\n${check.warnings.map((w) => `• ${w}`).join('\n\n')}\n\nPublish anyway?`,
+      );
+      if (!proceed) return;
+    }
+    setBusy(true);
     try {
-      await persist();
-      await setLegendStatus(id, 'published');
-      await load();
-      setFeedback({ kind: 'success', text: 'Published. This legend is now live in the app.' });
+      if (await assertUnchanged()) {
+        await setLegendStatus(id, 'published', cleanForm);
+        await load();
+        setFeedback({ kind: 'success', text: 'Published. This legend is now live in the app.' });
+      }
     } catch (err: unknown) {
       setFeedback({ kind: 'error', text: (err as { message?: string }).message ?? 'Publish failed.' });
     } finally {
@@ -190,11 +253,23 @@ export function VaultLegendEditorPage() {
   };
 
   const onUnpublish = async () => {
-    setBusy(true); setFeedback(null); setBlockers([]);
+    if (!cleanForm) return;
+    if (!window.confirm(
+      'Unpublish this legend? It will be hidden from the app and go back to draft. Your current edits are saved with it.',
+    )) return;
+    clearNotices();
+    setBusy(true);
     try {
-      await setLegendStatus(id, 'draft');
-      await load();
-      setFeedback({ kind: 'success', text: 'Unpublished. Back to draft (hidden from the app).' });
+      if (await assertUnchanged()) {
+        // Demote AND persist the current form in the same write so unsaved
+        // edits are never discarded. publishedAt is cleared in the data layer.
+        await setLegendStatus(id, 'draft', cleanForm);
+        await load();
+        setFeedback({
+          kind: 'success',
+          text: 'Unpublished. Back to draft (hidden from the app) — your edits were kept.',
+        });
+      }
     } catch (err: unknown) {
       setFeedback({ kind: 'error', text: (err as { message?: string }).message ?? 'Unpublish failed.' });
     } finally {
@@ -262,6 +337,11 @@ export function VaultLegendEditorPage() {
         {blockers.length > 0 && (
           <ul className="mt-2 list-disc list-inside text-xs text-red-700 bg-red-50 rounded p-2 space-y-0.5">
             {blockers.map((b, i) => <li key={i}>{b}</li>)}
+          </ul>
+        )}
+        {warnings.length > 0 && (
+          <ul className="mt-2 list-disc list-inside text-xs text-amber-800 bg-amber-50 rounded p-2 space-y-0.5">
+            {warnings.map((w, i) => <li key={i}>{w}</li>)}
           </ul>
         )}
         {!publishCheck.ok && publishCheck.failures.length > 0 && blockers.length === 0 && (

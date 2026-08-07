@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { getDashboardCounts, listSyncRuns, toDisplayDate } from '../data/firestore';
-import type { SyncRun } from '../data/types';
-import { Card, LoadingState, ErrorState, Badge, PageHeader } from '../components/ui';
-
-interface Counts {
-  games: number;
-  predictions: number;
-  news: number;
-  posts: number;
-}
+import { Link } from 'react-router';
+import { getDashboardCounts, listSyncRuns, toDisplayDate, type DashboardCounts } from '../data/firestore';
+import type { SyncRun, UserRole } from '../data/types';
+import { useAuth } from '../auth/AuthContext';
+import { ADMIN_ROLES, EDITOR_ROLES, MOD_ROLES } from '../auth/roles';
+import { Card, LoadingState, Badge, PageHeader } from '../components/ui';
 
 function syncStatusColor(status: SyncRun['status']): 'green' | 'red' | 'blue' | 'yellow' {
   switch (status) {
@@ -21,38 +16,56 @@ function syncStatusColor(status: SyncRun['status']): 'green' | 'red' | 'blue' | 
 }
 
 export function DashboardPage() {
-  const [counts, setCounts] = useState<Counts | null>(null);
+  const { role } = useAuth();
+  const [counts, setCounts] = useState<DashboardCounts | null>(null);
   const [syncRuns, setSyncRuns] = useState<SyncRun[]>([]);
+  // Per-panel error tolerance: one failed read degrades that panel, never the
+  // whole page — moderators (who can't read sync_runs) still get a dashboard.
+  const [syncError, setSyncError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
   useEffect(() => {
     (async () => {
-      try {
-        const [c, runs] = await Promise.all([
-          getDashboardCounts(),
-          listSyncRuns(5),
-        ]);
-        setCounts(c);
-        setSyncRuns(runs);
-      } catch (err: unknown) {
-        const e = err as { message?: string };
-        setError(e.message ?? 'Failed to load dashboard data.');
-      } finally {
-        setLoading(false);
+      const [countsResult, runsResult] = await Promise.allSettled([
+        getDashboardCounts(),
+        listSyncRuns(5),
+      ]);
+      if (countsResult.status === 'fulfilled') {
+        setCounts(countsResult.value);
+      } else {
+        setCounts({ games: null, predictions: null, news: null, posts: null });
       }
+      if (runsResult.status === 'fulfilled') {
+        setSyncRuns(runsResult.value);
+      } else {
+        const e = runsResult.reason as { code?: string; message?: string };
+        setSyncError(
+          e.code === 'permission-denied'
+            ? 'Sync history is restricted to admins.'
+            : e.message ?? 'Failed to load sync runs.',
+        );
+      }
+      setLoading(false);
     })();
   }, []);
 
   if (loading) return <LoadingState label="Loading dashboard…" />;
-  if (error) return <ErrorState message={error} />;
 
   const statCards = [
-    { label: 'Games', count: counts?.games ?? 0, to: '/games', icon: '🏟', color: 'text-[#1E5AA8]' },
-    { label: 'Predictions', count: counts?.predictions ?? 0, to: '/predictions', icon: '🎯', color: 'text-purple-600' },
-    { label: 'News Cards', count: counts?.news ?? 0, to: '/news', icon: '📰', color: 'text-green-600' },
-    { label: 'Community Posts', count: counts?.posts ?? 0, to: '/moderation', icon: '💬', color: 'text-orange-600' },
+    { label: 'Games', count: counts?.games ?? null, to: '/games', icon: '🏟', color: 'text-[#1E5AA8]' },
+    { label: 'Predictions', count: counts?.predictions ?? null, to: '/predictions', icon: '🎯', color: 'text-purple-600' },
+    { label: 'News Cards', count: counts?.news ?? null, to: '/news', icon: '📰', color: 'text-green-600' },
+    { label: 'Visible Posts', count: counts?.posts ?? null, to: '/moderation', icon: '💬', color: 'text-orange-600' },
   ];
+
+  const quickLinks: Array<{ to: string; label: string; roles: UserRole[] }> = [
+    { to: '/games', label: '+ Add Game', roles: EDITOR_ROLES },
+    { to: '/predictions', label: '+ Create Prediction', roles: EDITOR_ROLES },
+    { to: '/news', label: '+ Add News Card', roles: EDITOR_ROLES },
+    { to: '/moderation', label: 'Review Posts', roles: MOD_ROLES },
+    { to: '/sync', label: 'Sync Health', roles: ADMIN_ROLES },
+  ];
+  const visibleLinks = quickLinks.filter((l) => role && l.roles.includes(role));
 
   return (
     <div className="space-y-6">
@@ -61,52 +74,57 @@ export function DashboardPage() {
         subtitle="Overview of content, predictions, and sync health."
       />
 
-      {/* Stat cards */}
+      {/* Stat cards — a count the role can't read shows as restricted, not a dead page */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((s) => (
           <Link key={s.label} to={s.to}>
             <Card className="hover:shadow-md transition-shadow cursor-pointer">
               <div className="flex items-start justify-between mb-2">
                 <span className="text-2xl">{s.icon}</span>
-                <span className={`text-3xl font-bold ${s.color}`}>{s.count}</span>
+                {s.count === null
+                  ? <span className="text-3xl font-bold text-gray-300" title="Not available for your role">—</span>
+                  : <span className={`text-3xl font-bold ${s.color}`}>{s.count}</span>}
               </div>
               <p className="text-sm text-gray-500 font-medium">{s.label}</p>
+              {s.count === null && (
+                <p className="text-[11px] text-gray-400 mt-0.5">Not available for your role</p>
+              )}
             </Card>
           </Link>
         ))}
       </div>
 
       {/* Quick links */}
-      <Card>
-        <h3 className="font-semibold text-gray-800 mb-3">Quick Links</h3>
-        <div className="flex flex-wrap gap-3">
-          {[
-            { to: '/games', label: '+ Add Game' },
-            { to: '/predictions', label: '+ Create Prediction' },
-            { to: '/news', label: '+ Add News Card' },
-            { to: '/moderation', label: 'Review Posts' },
-            { to: '/sync', label: 'Sync Health' },
-          ].map((l) => (
-            <Link
-              key={l.to}
-              to={l.to}
-              className="text-sm text-[#1E5AA8] underline underline-offset-2 hover:text-[#1a4d94]"
-            >
-              {l.label}
-            </Link>
-          ))}
-        </div>
-      </Card>
+      {visibleLinks.length > 0 && (
+        <Card>
+          <h3 className="font-semibold text-gray-800 mb-3">Quick Links</h3>
+          <div className="flex flex-wrap gap-3">
+            {visibleLinks.map((l) => (
+              <Link
+                key={l.to}
+                to={l.to}
+                className="text-sm text-[#1E5AA8] underline underline-offset-2 hover:text-[#1a4d94]"
+              >
+                {l.label}
+              </Link>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Recent sync runs */}
       <Card>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-gray-800">Recent Sync Runs</h3>
-          <Link to="/sync" className="text-xs text-[#1E5AA8] hover:underline">
-            View all →
-          </Link>
+          {!syncError && (
+            <Link to="/sync" className="text-xs text-[#1E5AA8] hover:underline">
+              View all →
+            </Link>
+          )}
         </div>
-        {syncRuns.length === 0 ? (
+        {syncError ? (
+          <p className="text-sm text-gray-400 py-4 text-center">{syncError}</p>
+        ) : syncRuns.length === 0 ? (
           <p className="text-sm text-gray-400 py-4 text-center">
             No sync runs yet. Sync runs are written by Cloud Functions (Phase 2).
           </p>

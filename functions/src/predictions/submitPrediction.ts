@@ -63,7 +63,9 @@ export const submitPrediction = onCall<SubmitPredictionPayload>(async (request) 
     throwError('invalid-argument', 'selectedOptionId is not a valid option for this prediction.');
   }
 
-  // Idempotency: check for existing entry
+  // Idempotency: query catches legacy auto-ID entries; the deterministic
+  // doc ID + create() below closes the race two concurrent submits would
+  // otherwise win together (both seeing an empty query result).
   const entriesRef = db.collection('prediction_entries');
   const existingQuery = await entriesRef
     .where('predictionId', '==', predictionId)
@@ -87,11 +89,20 @@ export const submitPrediction = onCall<SubmitPredictionPayload>(async (request) 
     createdAt: new Date().toISOString(),
   };
 
-  const entryRef = entriesRef.doc();
-  await entryRef.set({
-    ...entry,
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  // One entry per (prediction, user) enforced at the datastore level.
+  const entryRef = entriesRef.doc(`${predictionId}_${uid}`);
+  try {
+    await entryRef.create({
+      ...entry,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    // gRPC code 6 = ALREADY_EXISTS (a concurrent submit won the race)
+    if ((err as { code?: number }).code === 6) {
+      throwError('already-exists', 'You have already submitted a pick for this prediction.');
+    }
+    throw err;
+  }
 
   return { entryId: entryRef.id, message: 'Pick submitted successfully.' };
 });

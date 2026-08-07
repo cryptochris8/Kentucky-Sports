@@ -52,7 +52,8 @@
       "model": "claude-opus-4-8",
       "status": "draft",
       "confidence": "researched",
-      "generatedAt": "2026-06-16T16:46:02.445Z"
+      "generatedAt": "2026-06-16T16:46:02.445Z",
+      "updatedAt": "2026-06-16T16:46:02.445Z"
     }
   ]
 }

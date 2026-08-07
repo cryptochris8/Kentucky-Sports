@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
+import { useEmulator } from '../lib/firebase';
 import { Button, Input, FormField } from '../components/ui';
 
 export function LoginPage() {
@@ -90,8 +91,10 @@ export function LoginPage() {
           </Button>
         </form>
 
-        {/* Dev helper — only shown in emulator mode */}
-        {import.meta.env.VITE_USE_EMULATOR !== 'false' && (
+        {/* Dev helper — strictly emulator-only (same opt-in predicate that
+            gates the emulator connection in lib/firebase.ts, so this can never
+            render against the production Auth tenant). */}
+        {useEmulator && (
           <div className="mt-6 pt-6 border-t border-gray-100">
             <p className="text-xs text-gray-400 mb-3 text-center">
               Local dev (emulator) only

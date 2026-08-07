@@ -78,6 +78,25 @@ abstract final class Fmt {
     return 'Closes in ${countdown(closesAt, from: now)}';
   }
 
+  /// Sport-correct start-of-game verb, e.g. "Kickoff" for football and
+  /// "Tipoff" for basketball. Returns null for sports without an established
+  /// term so callers can fall back to neutral "game time" copy.
+  static String? startVerb(String sport) {
+    switch (sport) {
+      case 'football':
+        return 'Kickoff';
+      case 'mens_basketball':
+      case 'womens_basketball':
+        return 'Tipoff';
+      case 'baseball':
+        return 'First pitch';
+      case 'volleyball':
+        return 'First serve';
+      default:
+        return null;
+    }
+  }
+
   /// Title-cases a sport key, e.g. `mens_basketball` -> "Men's Basketball".
   static String sportLabel(String sport) {
     switch (sport) {

@@ -163,17 +163,19 @@ class _BadgeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color c = BgColors.rarity(badge.rarity);
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
 
     return GestureDetector(
       onTap: () => _showDetail(context),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: earned ? BgColors.surface : BgColors.canvas,
+          color: earned ? scheme.surface : scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: earned ? c.withValues(alpha: 0.5) : BgColors.hairline,
+            color: earned ? c.withValues(alpha: 0.5) : scheme.outline,
             width: earned ? 1.6 : 1,
           ),
         ),
@@ -194,14 +196,14 @@ class _BadgeCard extends StatelessWidget {
                             end: Alignment.bottomRight,
                           )
                         : null,
-                    color: earned ? null : BgColors.hairline,
+                    color: earned ? null : scheme.outline,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(
                     earned
                         ? Icons.workspace_premium_rounded
                         : Icons.lock_outline_rounded,
-                    color: earned ? Colors.white : BgColors.mist,
+                    color: earned ? Colors.white : scheme.onSurfaceVariant,
                     size: 30,
                   ),
                 ),
@@ -214,7 +216,7 @@ class _BadgeCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: text.titleMedium?.copyWith(
-                color: earned ? BgColors.ink : BgColors.slate,
+                color: earned ? scheme.onSurface : scheme.onSurfaceVariant,
                 fontSize: 13,
               ),
             ),
@@ -236,6 +238,7 @@ class _BadgeCard extends StatelessWidget {
       context: context,
       showDragHandle: true,
       builder: (BuildContext context) {
+        final ColorScheme scheme = Theme.of(context).colorScheme;
         return Padding(
           padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
           child: Column(
@@ -249,14 +252,14 @@ class _BadgeCard extends StatelessWidget {
                       ? LinearGradient(
                           colors: <Color>[c.withValues(alpha: 0.85), c])
                       : null,
-                  color: earned ? null : BgColors.hairline,
+                  color: earned ? null : scheme.outline,
                   borderRadius: BorderRadius.circular(22),
                 ),
                 child: Icon(
                   earned
                       ? Icons.workspace_premium_rounded
                       : Icons.lock_outline_rounded,
-                  color: earned ? Colors.white : BgColors.mist,
+                  color: earned ? Colors.white : scheme.onSurfaceVariant,
                   size: 40,
                 ),
               ),
@@ -275,7 +278,7 @@ class _BadgeCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: BgColors.blueTint,
+                  color: scheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -283,7 +286,7 @@ class _BadgeCard extends StatelessWidget {
                     Icon(
                       earned ? Icons.check_circle_rounded : Icons.flag_rounded,
                       size: 16,
-                      color: earned ? BgColors.positive : BgColors.deepBlue,
+                      color: earned ? BgColors.positive : scheme.primary,
                     ),
                     const SizedBox(width: 8),
                     Expanded(

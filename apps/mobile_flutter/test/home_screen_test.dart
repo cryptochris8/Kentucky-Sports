@@ -92,6 +92,25 @@ class _FakeDataSource implements AppDataSource {
 }
 
 void main() {
+  group('vaultDayOfYear — From the Vault daily rotation index', () {
+    test('derives from local calendar components, stable across the day', () {
+      expect(vaultDayOfYear(DateTime(2026, 1, 1)), 0);
+      expect(vaultDayOfYear(DateTime(2026, 1, 1, 23, 59)), 0);
+      expect(vaultDayOfYear(DateTime(2026, 1, 2)), 1);
+      expect(vaultDayOfYear(DateTime(2026, 12, 31)), 364);
+    });
+
+    test('is DST-safe: no skipped or repeated page around the transitions',
+        () {
+      // US spring-forward is 2026-03-08 02:00 local; elapsed-time division
+      // would run an hour short for the rest of the summer.
+      expect(vaultDayOfYear(DateTime(2026, 3, 8)), 66);
+      expect(vaultDayOfYear(DateTime(2026, 3, 9, 0, 30)), 67);
+      // And fall-back (2026-11-01) must not repeat a page the next morning.
+      expect(vaultDayOfYear(DateTime(2026, 11, 2)), 305);
+    });
+  });
+
   testWidgets('Home hub renders the greeting, the gameday hero, and the '
       'picks/leaderboard tiles', (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -127,5 +146,10 @@ void main() {
     await tester.scrollUntilVisible(find.text('The Vault'), 300);
     expect(find.text('The Vault'), findsOneWidget);
     expect(find.text('Bluegrass Preps'), findsOneWidget);
+
+    // Flush the Vault data source's simulated-latency timers (the "From the
+    // Vault" tile loads the real asset) so no timer outlives the test.
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump(const Duration(milliseconds: 250));
   });
 }

@@ -111,23 +111,38 @@ const List<FootballMetric> basicFootballMetrics = <FootballMetric>[
   ),
 ];
 
+// PARITY: the two composite formulas below are mirrored exactly in the
+// TypeScript twin (packages/stats_engine/typescript/src/football.ts). Each
+// term is clamped to 0..1 before weighting so one bad component can never
+// silently cancel the other. Both test suites assert the same shared fixtures.
+
+double _clamp01(double v) => v.clamp(0.0, 1.0);
+
 /// "Chaos Factor" composite (docs/06): sacks + forced takeaways pressure.
 ///
-/// Returns a 0..100 fan-facing score from sacks/game and a positive turnover
-/// margin. Demo-grade heuristic, not an official metric.
+/// Returns a 0..100 fan-facing score. Demo-grade heuristic, not an official
+/// metric. Formula:
+///   clamp01(sacksPerGame / 5) * 50 + clamp01((turnoverMargin + 3) / 6) * 50,
+/// rounded.
 double chaosFactorScore(Map<String, dynamic> stats) {
   final double sacks = (stats['sacksPerGame'] as num?)?.toDouble() ?? 0;
   final double tom = (stats['turnoverMargin'] as num?)?.toDouble() ?? 0;
-  // 3.0 sacks/game ~ strong; +1.0 turnover margin ~ elite.
-  final double sackScore = (sacks / 3.0) * 60;
-  final double tomScore = ((tom + 1.0) / 2.0) * 40;
-  return (sackScore + tomScore).clamp(0, 100);
+  final double sackScore = _clamp01(sacks / 5.0) * 50;
+  final double tomScore = _clamp01((tom + 3.0) / 6.0) * 50;
+  return (sackScore + tomScore).roundToDouble();
 }
 
-/// "Drive Finisher" composite: red-zone scoring on a 0..100 scale.
+/// "Drive Finisher" composite: red-zone efficiency + scoring punch on a
+/// 0..100 scale — a 50/50 blend, per its documented inputs
+/// (redZoneScorePct + pointsPerGame). Formula:
+///   clamp01(redZoneScorePct) * 50 + clamp01(pointsPerGame / 50) * 50,
+/// rounded.
 double driveFinisherScore(Map<String, dynamic> stats) {
   final double rz = (stats['redZoneScorePct'] as num?)?.toDouble() ?? 0;
-  return (rz * 100).clamp(0, 100);
+  final double ppg = (stats['pointsPerGame'] as num?)?.toDouble() ?? 0;
+  final double rzScore = _clamp01(rz) * 50;
+  final double ppgScore = _clamp01(ppg / 50.0) * 50;
+  return (rzScore + ppgScore).roundToDouble();
 }
 
 /// Looks up fan-friendly metadata for a football metric key.

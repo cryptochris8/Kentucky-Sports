@@ -4,8 +4,9 @@ rules_version = '2';
 //
 // Model (see docs/04_FIREBASE_DATA_MODEL.md and docs/11_SECURITY_LEGAL_COMPLIANCE.md):
 //  - Public read for published reference data (teams, games, stats, news, polls, badges...).
-//  - Authenticated users manage ONLY their own profile, prediction entries, reactions, posts.
-//  - Locked prediction entries cannot be edited.
+//  - Authenticated users manage ONLY their own profile, reactions, posts.
+//  - Prediction entries are written ONLY through the submitPrediction callable, which
+//    validates status/closesAt/options server-side; scoring is Functions-only.
 //  - Stat imports & scored results are written ONLY by the Functions service account,
 //    which bypasses these rules. Clients are therefore denied writes to those collections.
 //  - Roles come from custom claims (request.auth.token.role); admin/editor manage CMS,
@@ -27,11 +28,19 @@ service cloud.firestore {
     function isModerator() { return role() == 'moderator' || isAdmin(); }
     function isOwner(uid)  { return isSignedIn() && request.auth.uid == uid; }
 
+    // True when an update leaves `field` untouched (absent on both sides counts
+    // as unchanged). Used to pin server-owned fields on client updates.
+    function unchangedField(field) {
+      return (field in request.resource.data) == (field in resource.data)
+        && (!(field in resource.data) || request.resource.data[field] == resource.data[field]);
+    }
+
     // Public, read-only reference collections (server/admin-written only).
+    // NOTE: `articles` has its own status-gated block below.
     function isPublicReference(col) {
       return col in [
         'teams', 'seasons', 'games', 'game_summaries', 'team_stats',
-        'player_profiles', 'player_stats', 'badges', 'news_cards', 'articles',
+        'player_profiles', 'player_stats', 'badges', 'news_cards',
         'high_schools', 'high_school_games', 'recruits', 'app_config', 'venues'
       ];
     }
@@ -40,13 +49,18 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin() || isModerator();
       // A user creates/updates only their own profile and may not self-assign privileged
-      // fields (role / xp / level are managed by Cloud Functions).
+      // fields (role / xp / level / predictionRecord are managed by Cloud Functions).
+      // On create the progression fields must start at their zero state (or be absent).
       allow create: if isOwner(userId)
-                    && !('role' in request.resource.data ? request.resource.data.role != 'user' : false);
+                    && (!('role' in request.resource.data) || request.resource.data.role == 'user')
+                    && (!('xp' in request.resource.data) || request.resource.data.xp == 0)
+                    && (!('level' in request.resource.data) || request.resource.data.level == 1)
+                    && !('predictionRecord' in request.resource.data);
       allow update: if isOwner(userId)
-                    && request.resource.data.role == resource.data.role
-                    && request.resource.data.xp == resource.data.xp
-                    && request.resource.data.level == resource.data.level;
+                    && unchangedField('role')
+                    && unchangedField('xp')
+                    && unchangedField('level')
+                    && unchangedField('predictionRecord');
       allow update, delete: if isAdmin();
 
       // A user's earned badges are server-awarded; readable by the owner/admin.
@@ -61,11 +75,20 @@ service cloud.firestore {
       allow read: if isPublicReference(col);
       // CMS content (games, news, etc.) editable by editors/admins from the portal.
       allow create, update, delete: if isEditor()
-        && col in ['teams','seasons','games','game_summaries','news_cards','articles',
+        && col in ['teams','seasons','games','game_summaries','news_cards',
                    'high_schools','high_school_games','recruits','app_config'];
       // Stat & summary imports are Functions-only.
       allow write: if false
         && col in ['team_stats','player_stats','player_profiles'];
+    }
+
+    // ---------- articles (AI-drafted game coverage) ----------
+    // Public may read ONLY published articles — flipping status to draft/hidden
+    // actually removes them from clients. Editors see and manage everything
+    // (mirrors the vault_legends gate below).
+    match /articles/{articleId} {
+      allow read: if resource.data.status == 'published' || isEditor();
+      allow create, update, delete: if isEditor();
     }
 
     // ---------- predictions (questions) ----------
@@ -75,18 +98,12 @@ service cloud.firestore {
     }
 
     // ---------- prediction entries (user picks) ----------
+    // All writes go through the submitPrediction callable, which enforces
+    // open-status / closesAt / valid-option / one-pick-per-user server-side.
+    // Direct client writes would bypass the kickoff lock, so they are denied.
     match /prediction_entries/{entryId} {
       allow read: if isOwner(resource.data.userId) || isAdmin();
-      // Create only your own entry; scoring fields must start empty/unscored.
-      allow create: if isOwner(request.resource.data.userId)
-                    && request.resource.data.isCorrect == null
-                    && request.resource.data.pointsAwarded == 0;
-      // You may update your pick only while it is NOT locked. Scoring is Functions-only.
-      allow update: if isOwner(resource.data.userId)
-                    && resource.data.locked == false
-                    && request.resource.data.locked == false
-                    && request.resource.data.pointsAwarded == resource.data.pointsAwarded;
-      allow delete: if false;
+      allow create, update, delete: if false; // submitPrediction + scoring Functions only
     }
 
     // ---------- polls ----------
@@ -104,13 +121,18 @@ service cloud.firestore {
                     && isOwner(request.resource.data.userId)
                     && request.resource.data.status == 'pending';
       // Author may edit body while pending/visible; moderators control status.
-      allow update: if (isOwner(resource.data.userId)
-                        && request.resource.data.status == resource.data.status)
-                     || isModerator();
+      // Server-owned fields are pinned for everyone: authorship cannot be
+      // reassigned and reaction counters belong to the reactToPost callable.
+      allow update: if ((isOwner(resource.data.userId)
+                          && request.resource.data.status == resource.data.status)
+                        || isModerator())
+                    && unchangedField('userId')
+                    && unchangedField('reactionCounts')
+                    && unchangedField('createdAt');
       allow delete: if isModerator() || isOwner(resource.data.userId);
 
       match /comments/{commentId} {
-        allow read: if true;
+        allow read: if isSignedIn();
         allow create: if isSignedIn() && isOwner(request.resource.data.userId);
         allow update, delete: if isOwner(resource.data.userId) || isModerator();
       }
@@ -138,8 +160,15 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow write: if false; // Cloud Functions only
     }
+    // Append-only audit trail. Moderators write records of their own actions
+    // from the portal; nobody can rewrite or delete history from a client.
     match /moderation_actions/{actionId} {
-      allow read, write: if isModerator();
+      allow read: if isModerator();
+      allow create: if isModerator()
+                    && request.resource.data.postId is string
+                    && request.resource.data.action is string
+                    && request.resource.data.moderatorUid == request.auth.uid;
+      allow update, delete: if false;
     }
 
     // ---------- watch parties / check-ins (Phase 4 placeholders) ----------

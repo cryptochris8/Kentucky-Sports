@@ -44,9 +44,9 @@ class TeamPageScreen extends ConsumerWidget {
                   <Widget>[_TeamHeader(team: t)],
               body: Column(
                 children: <Widget>[
-                  const Material(
-                    color: BgColors.surface,
-                    child: TabBar(
+                  Material(
+                    color: Theme.of(context).colorScheme.surface,
+                    child: const TabBar(
                       isScrollable: true,
                       tabAlignment: TabAlignment.start,
                       tabs: <Widget>[
@@ -197,7 +197,9 @@ class _RecordCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
     final bool fb = sport == 'football';
     final List<({String key, String label})> highlights = fb
         ? <({String key, String label})>[
@@ -220,17 +222,18 @@ class _RecordCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text('RECORD', style: BgTypography.eyebrow(BgColors.slate)),
+                  Text('RECORD',
+                      style: BgTypography.eyebrow(scheme.onSurfaceVariant)),
                   Text(
                     stat.record,
-                    style: BgTypography.statNumber(BgColors.deepBlue, size: 34),
+                    style: BgTypography.statNumber(scheme.primary, size: 34),
                   ),
                 ],
               ),
               const Spacer(),
               Pill(
                 label: '${stat.season} season',
-                color: BgColors.deepBlue,
+                color: scheme.primary,
               ),
             ],
           ),
@@ -249,7 +252,8 @@ class _RecordCard extends StatelessWidget {
                                 stat.statValue(h.key)!,
                                 sport: sport,
                               ),
-                        style: BgTypography.statNumber(BgColors.ink, size: 20),
+                        style:
+                            BgTypography.statNumber(scheme.onSurface, size: 20),
                       ),
                       Text(h.label, style: text.labelSmall),
                     ],
@@ -307,8 +311,14 @@ class _ScheduleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
     final bool isFinal = game.isFinal;
+    // Tri-state outcome: null (unknown) must never render as a loss.
+    final bool? won = game.kentuckyWon;
+    final bool hasScores =
+        game.kentuckyScore != null && game.opponentScore != null;
     return BgCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
@@ -319,11 +329,11 @@ class _ScheduleRow extends StatelessWidget {
               children: <Widget>[
                 Text(
                   Fmt.shortDay(game.startTime).split(' ').first.toUpperCase(),
-                  style: BgTypography.eyebrow(BgColors.slate),
+                  style: BgTypography.eyebrow(scheme.onSurfaceVariant),
                 ),
                 Text(
                   game.startTime?.day.toString() ?? '–',
-                  style: BgTypography.statNumber(BgColors.deepBlue, size: 22),
+                  style: BgTypography.statNumber(scheme.primary, size: 22),
                 ),
               ],
             ),
@@ -366,16 +376,22 @@ class _ScheduleRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: <Widget>[
                 Text(
-                  game.kentuckyWon ? 'W' : 'L',
+                  won == null ? '—' : (won ? 'W' : 'L'),
                   style: BgTypography.statNumber(
-                    game.kentuckyWon ? BgColors.positive : BgColors.negative,
+                    won == null
+                        ? scheme.onSurfaceVariant
+                        : won
+                            ? BgColors.positive
+                            : BgColors.negative,
                     size: 18,
                   ),
                 ),
-                Text(
-                  '${game.kentuckyScore}-${game.opponentScore}',
-                  style: text.bodySmall,
-                ),
+                // The score line only renders when both scores exist.
+                if (hasScores)
+                  Text(
+                    '${game.kentuckyScore}-${game.opponentScore}',
+                    style: text.bodySmall,
+                  ),
               ],
             )
           else
@@ -411,6 +427,7 @@ class _RosterTab extends ConsumerWidget {
           separatorBuilder: (_, __) => const SizedBox(height: 10),
           itemBuilder: (BuildContext context, int i) {
             final PlayerProfile p = list[i];
+            final ColorScheme scheme = Theme.of(context).colorScheme;
             return BgCard(
               onTap: () => context.push(Routes.player(p.id)),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -420,14 +437,14 @@ class _RosterTab extends ConsumerWidget {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: BgColors.blueTint,
+                      color: scheme.primary.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
                       child: Text(
                         p.jersey != null ? '${p.jersey}' : p.position,
                         style:
-                            BgTypography.statNumber(BgColors.deepBlue, size: 18),
+                            BgTypography.statNumber(scheme.primary, size: 18),
                       ),
                     ),
                   ),

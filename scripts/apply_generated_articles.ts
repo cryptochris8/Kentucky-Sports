@@ -8,14 +8,23 @@
  * Run after `npm run generate`:
  *   npm --prefix scripts run apply-articles
  *
- * Note: assumes the `articles` array is the last top-level key in dev_seed.json
- * (it is) so the rest of the file's formatting is preserved. The output is
- * JSON.parse-validated before writing.
+ * Published-work guard (mirrors seed_firestore.ts's vault-legend skip): a
+ * generated article never replaces an existing status:"published" article with
+ * a draft, and a model:"seed_template" regeneration never replaces a
+ * model:"claude-*" article. Skips are logged; pass --force to overwrite anyway.
+ *
+ * Note: the whole seed document is parsed, mutated, and re-serialized — no
+ * string splicing — so every top-level key survives regardless of key order.
+ * (The old marker-splice approach silently dropped any collection added after
+ * "articles".) The output is key-count-checked before writing as a belt-and-
+ * braces guard.
  */
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { protectedArticleReplacement } from "./generate_articles";
 
+const FORCE = process.argv.includes("--force");
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SEED = resolve(__dirname, "../seed_data/dev_seed.json");
 const GEN_DIR = resolve(__dirname, "../seed_data/generated");
@@ -23,11 +32,16 @@ const ASSET = resolve(__dirname, "../apps/mobile_flutter/assets/seed/dev_seed.js
 
 interface Article {
   id: string;
+  status?: unknown;
+  model?: unknown;
   [k: string]: unknown;
 }
 
 const text = readFileSync(SEED, "utf8");
-const seed = JSON.parse(text) as { articles?: Article[]; games?: { id: string }[] };
+const seed = JSON.parse(text) as Record<string, unknown> & {
+  articles?: Article[];
+  games?: { id: string }[];
+};
 const existing: Article[] = Array.isArray(seed.articles) ? seed.articles : [];
 
 const genFiles = existsSync(GEN_DIR)
@@ -46,31 +60,58 @@ const generated: Article[] = genFiles.map(
 // a stale generated file for a game that was later renamed or removed.
 const gameIds = new Set((seed.games ?? []).map((g) => g.id));
 const isValid = (a: Article) => typeof a.gameId === "string" && gameIds.has(a.gameId as string);
-// Generated (real Claude previews) first; keep any existing valid article not overwritten
-// (e.g. the template recap).
 const generatedValid = generated.filter(isValid);
-const genIds = new Set(generatedValid.map((a) => a.id));
-const merged = [...generatedValid, ...existing.filter((a) => !genIds.has(a.id) && isValid(a))];
 
-// Surgically replace only the articles array to preserve the rest of the file.
-const marker = '  "articles": [';
-const idx = text.indexOf(marker);
-let out: string;
-if (idx >= 0) {
-  const before = text.slice(0, idx);
-  const body = '  "articles": ' + JSON.stringify(merged, null, 2).replace(/\n/g, "\n  ") + "\n}\n";
-  out = before + body;
-} else {
-  out = text.replace(/\}\s*$/, `  "articles": ${JSON.stringify(merged, null, 2)}\n}\n`);
+// Published-work guard: never demote an existing published article to a draft,
+// or replace a claude-* article with a seed_template regeneration, without
+// --force. Skipped articles keep their existing seed version.
+const existingById = new Map(existing.map((a) => [a.id, a]));
+const applied: Article[] = [];
+const skipped: string[] = [];
+for (const gen of generatedValid) {
+  const prior = existingById.get(gen.id);
+  const reason = prior && !FORCE ? protectedArticleReplacement(prior, gen) : null;
+  if (reason) {
+    console.log(`  - ${gen.id}: skipped (${reason} — pass --force to overwrite)`);
+    skipped.push(gen.id);
+    continue;
+  }
+  applied.push(gen);
 }
 
-JSON.parse(out); // validate before writing — throws on any malformed result
+if (applied.length === 0) {
+  console.log(
+    `Nothing to apply — all ${skipped.length} generated article(s) were protected. Seed left untouched.`
+  );
+  process.exit(0);
+}
+
+// Applied articles first; keep any existing valid article not overwritten
+// (e.g. the template recap, or a protected article that was skipped above).
+const appliedIds = new Set(applied.map((a) => a.id));
+const merged = [...applied, ...existing.filter((a) => !appliedIds.has(a.id) && isValid(a))];
+
+// Replace only the articles array; every other top-level key passes through
+// untouched because we re-serialize the parsed document.
+const keysBefore = Object.keys(seed);
+seed.articles = merged;
+const out = JSON.stringify(seed, null, 2) + "\n";
+
+const reparsed = JSON.parse(out) as Record<string, unknown>;
+const keysAfter = Object.keys(reparsed);
+if (keysAfter.length < keysBefore.length) {
+  throw new Error(
+    `apply-articles would drop top-level seed keys (${keysBefore.length} -> ${keysAfter.length}) — aborting.`
+  );
+}
+
 writeFileSync(SEED, out);
 if (existsSync(dirname(ASSET))) {
   writeFileSync(ASSET, out);
 }
 
 console.log(
-  `Applied ${generated.length} generated article(s) [${generated.map((a) => a.id).join(", ")}].\n` +
-    `Seed now has ${merged.length} articles. Synced Flutter asset.`
+  `Applied ${applied.length} generated article(s) [${applied.map((a) => a.id).join(", ")}]` +
+    (skipped.length ? `; skipped ${skipped.length} protected [${skipped.join(", ")}]` : "") +
+    `.\nSeed now has ${merged.length} articles. Synced Flutter asset.`
 );

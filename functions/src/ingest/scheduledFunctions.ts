@@ -2,26 +2,68 @@
  * Scheduled Cloud Functions for data ingestion.
  *
  * Key-gated pattern:
- *   - When CFBD_API_KEY / CBBD_API_KEY is ABSENT: logs "skipped — no key" and writes a
- *     sync_runs doc (keeps stub behavior for local dev / emulator runs with no key).
- *   - When the key IS present: fetches from the provider, normalises, and merge-writes into
- *     the season-keyed Firestore collections, then writes a sync_runs doc.
+ *   - When CFBD_API_KEY / CBBD_API_KEY is ABSENT: logs and records a sync_runs doc
+ *     with status 'skipped' — a missing key must never look like a successful fetch.
+ *   - When the key IS present: fetches from the provider, normalises, and updates the
+ *     season-keyed Firestore collections, then writes a sync_runs doc.
+ *
+ * Keys are bound as Cloud Secrets (defineSecret) so deployed Gen-2 functions actually
+ * receive them; locally the emulator falls back to functions/.env.local.
  *
  * Staleness check: skips the provider call when the latest successful sync_run for a
- * (provider, sport) pair is less than FRESHNESS_WINDOW_HOURS old (default 24 h).
+ * (provider, sport) pair is less than FRESHNESS_WINDOW_HOURS old (20 h — deliberately
+ * shorter than the 24 h schedule period so a completed run never blocks the next night).
+ * Skipped runs do NOT count as fresh — only real fetches do.
+ *
+ * Games are matched against EXISTING documents (first by sourceGameId, then by a
+ * normalized sport/day/opponent key) so the sync updates the curated schedule in
+ * place instead of minting duplicate docs — see persistLogic.ts.
  */
 
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { defineSecret } from 'firebase-functions/params';
 import { getDb, Timestamp } from '../core/admin';
-import type { SyncRun, NormalizedGame, NormalizedTeamStat } from '@bluegrass/shared-models';
+import type { Game, NormalizedGame, NormalizedTeamStat, Sport, SyncRun } from '@bluegrass/shared-models';
 import { createCfbdClient } from './providers/cfbdClient';
 import { createCbbdClient } from './providers/cbbdClient';
+import {
+  deriveKentuckySide,
+  gameMatchKey,
+  hasAnyStatValue,
+  opponentTeamId,
+} from './persistLogic';
+
+const CFBD_API_KEY = defineSecret('CFBD_API_KEY');
+const CBBD_API_KEY = defineSecret('CBBD_API_KEY');
 
 const CURRENT_SEASON_FOOTBALL = 2026;
 const CURRENT_SEASON_BASKETBALL = 2026;
 
-/** Skip the provider call if a successful sync ran within this window. */
-const FRESHNESS_WINDOW_HOURS = 24;
+/**
+ * Skip the provider call if a successful sync ran within this window.
+ * MUST be < the 24 h schedule period: at exactly 24 h, last night's completed
+ * run still counts as fresh when tonight's fires (scheduler jitter puts the
+ * runs ~24 h apart), so every other night self-skips and the sync effectively
+ * runs every ~48 h. 20 h leaves slack for jitter while still deduping ad-hoc
+ * or manually triggered runs within the same day.
+ */
+export const FRESHNESS_WINDOW_HOURS = 20;
+
+/** Max characters of an error message persisted into a sync_runs doc. */
+const SYNC_ERROR_LIMIT = 1_000;
+
+/**
+ * Recorded outcome of a sync attempt. 'skipped' (no key / data fresh) is
+ * distinct from 'success' so the freshness gate and the admin Sync page only
+ * count runs that actually fetched data.
+ */
+type SyncOutcome = SyncRun['status'] | 'skipped';
+
+/** Mutable counter threaded through the persist helpers so a mid-sync failure
+ *  still reports how many records actually landed. */
+interface SyncProgress {
+  committed: number;
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -59,7 +101,7 @@ async function isDataFresh(
 async function writeSyncRun(
   provider: SyncRun['provider'],
   sport: SyncRun['sport'],
-  status: SyncRun['status'],
+  status: SyncOutcome,
   recordsProcessed: number,
   error: string | null,
   note?: string,
@@ -73,56 +115,132 @@ async function writeSyncRun(
     completedAt: now,
     status,
     recordsProcessed,
-    error,
+    error: error ? error.slice(0, SYNC_ERROR_LIMIT) : null,
   };
   if (note) doc['note'] = note;
   await db.collection('sync_runs').add(doc);
 }
 
-/** Merge-write normalised games into Firestore with provenance fields. */
-async function persistGames(games: NormalizedGame[], season: number): Promise<number> {
+/**
+ * Write normalised games into Firestore, updating existing docs in place.
+ *
+ * Matching order: stamped sourceGameId first, then the normalized
+ * (sport, Eastern-time day, opponent) key. On a match only score/status/provenance are
+ * stamped — curated fields (opponentName, isHome, homeTeamId, awayTeamId,
+ * broadcast, featured) are preserved. On no match a COMPLETE doc is created so
+ * the mobile client can render it.
+ */
+async function persistGames(
+  games: NormalizedGame[],
+  season: number,
+  sport: Sport,
+  progress: SyncProgress,
+): Promise<number> {
   const db = getDb();
-  let batch = db.batch();
-  let count = 0;
+  if (games.length === 0) return 0;
 
-  for (const g of games) {
-    const id = `${g.sport}_${season}_${g.sourceGameId}`;
-    const docRef = db.collection('games').doc(id);
-    batch.set(
-      docRef,
-      {
-        ...g,
-        id,
-        updatedAt: Timestamp.now(),
-        lastFetched: Timestamp.now(),
-        source: g.source,
-      },
-      { merge: true },
-    );
-    count++;
+  const existingSnap = await db
+    .collection('games')
+    .where('sport', '==', sport)
+    .where('season', '==', season)
+    .get();
 
-    // Firestore batch limit is 500 writes
-    if (count % 400 === 0) {
-      await batch.commit();
-      batch = db.batch();
-    }
+  const refsBySourceId = new Map<string, FirebaseFirestore.DocumentReference>();
+  const refsByMatchKey = new Map<string, FirebaseFirestore.DocumentReference>();
+  for (const docSnap of existingSnap.docs) {
+    const data = docSnap.data() as Game;
+    if (data.sourceGameId) refsBySourceId.set(String(data.sourceGameId), docSnap.ref);
+    const key = gameMatchKey(sport, data.startTime, data.opponentName ?? '');
+    if (key) refsByMatchKey.set(key, docSnap.ref);
   }
 
-  if (count % 400 !== 0) await batch.commit();
+  let count = 0;
+  for (const g of games) {
+    const side = deriveKentuckySide(g);
+    if (!side) {
+      console.warn(
+        `[persistGames] Skipping ${g.source} game ${g.sourceGameId} — no Kentucky side detected ` +
+          `(${g.homeTeamName} vs ${g.awayTeamName}).`,
+      );
+      continue;
+    }
+
+    const now = Timestamp.now();
+    const matchRef =
+      refsBySourceId.get(g.sourceGameId) ??
+      refsByMatchKey.get(gameMatchKey(sport, g.startTime, side.opponentName) ?? '');
+
+    if (matchRef) {
+      // Update in place; preserve curated fields, stamp scores/status/provenance.
+      await matchRef.update({
+        status: g.status,
+        homeScore: g.homeScore ?? null,
+        awayScore: g.awayScore ?? null,
+        sourceGameId: g.sourceGameId,
+        source: g.source,
+        confidence: 'official',
+        updatedAt: now,
+        lastFetched: now,
+      });
+      refsBySourceId.set(g.sourceGameId, matchRef);
+    } else {
+      const id = `${g.sport}_${season}_${g.sourceGameId}`;
+      const docRef = db.collection('games').doc(id);
+      const kentuckyTeamId = `kentucky_${sport}`;
+      const oppTeamId = opponentTeamId(side.opponentName);
+      await docRef.set(
+        {
+          id,
+          season,
+          sport: g.sport,
+          homeTeamId: side.isHome ? kentuckyTeamId : oppTeamId,
+          awayTeamId: side.isHome ? oppTeamId : kentuckyTeamId,
+          opponentName: side.opponentName,
+          isHome: side.isHome,
+          startTime: g.startTime,
+          venue: g.venue ?? null,
+          status: g.status,
+          homeScore: g.homeScore ?? null,
+          awayScore: g.awayScore ?? null,
+          broadcast: 'TBD',
+          featured: false,
+          source: g.source,
+          sourceGameId: g.sourceGameId,
+          confidence: 'official',
+          updatedAt: now,
+          lastFetched: now,
+        },
+        { merge: true },
+      );
+      refsBySourceId.set(g.sourceGameId, docRef);
+    }
+
+    count++;
+    progress.committed++;
+  }
+
   return count;
 }
 
 /** Merge-write normalised team stats into Firestore with provenance fields. */
-async function persistTeamStats(stats: NormalizedTeamStat[]): Promise<number> {
+async function persistTeamStats(
+  stats: NormalizedTeamStat[],
+  progress: SyncProgress,
+): Promise<number> {
   const db = getDb();
-  let batch = db.batch();
   let count = 0;
 
   for (const s of stats) {
+    // An all-null payload (provider shape change, empty response) must never
+    // merge over previously-good values wearing an 'official' label.
+    if (!hasAnyStatValue(s.stats)) {
+      console.warn(`[persistTeamStats] Skipping all-null stat doc for ${s.teamId} ${s.season}.`);
+      continue;
+    }
+
     const id = `${s.teamId}_${s.season}_${s.scope}`;
     const docRef = db.collection('team_stats').doc(id);
-    batch.set(
-      docRef,
+    await docRef.set(
       {
         ...s,
         id,
@@ -133,14 +251,9 @@ async function persistTeamStats(stats: NormalizedTeamStat[]): Promise<number> {
       { merge: true },
     );
     count++;
-
-    if (count % 400 === 0) {
-      await batch.commit();
-      batch = db.batch();
-    }
+    progress.committed++;
   }
 
-  if (count % 400 !== 0) await batch.commit();
   return count;
 }
 
@@ -148,37 +261,37 @@ async function persistTeamStats(stats: NormalizedTeamStat[]): Promise<number> {
 
 /**
  * Nightly football sync from CollegeFootballData.
- * Skipped when CFBD_API_KEY is absent; staleness-checked at 24 h.
+ * Skipped when CFBD_API_KEY is absent; staleness-checked at FRESHNESS_WINDOW_HOURS.
  */
 export const syncCollegeFootballNightly = onSchedule(
-  { schedule: 'every day 03:00', timeZone: 'America/New_York' },
+  { schedule: 'every day 03:00', timeZone: 'America/New_York', secrets: [CFBD_API_KEY] },
   async () => {
     const provider = 'cfbd' as const;
     const sport = 'football' as const;
-    const apiKey = process.env.CFBD_API_KEY ?? '';
+    const apiKey = CFBD_API_KEY.value();
 
     if (!apiKey) {
       console.log('[syncCollegeFootballNightly] Skipped — CFBD_API_KEY not set.');
-      await writeSyncRun(provider, sport, 'success', 0, null, 'skipped — no key');
+      await writeSyncRun(provider, sport, 'skipped', 0, null, 'skipped — no key');
       return;
     }
 
-    const fresh = await isDataFresh(provider, sport);
-    if (fresh) {
-      console.log('[syncCollegeFootballNightly] Data is fresh — skipping provider call.');
-      await writeSyncRun(provider, sport, 'success', 0, null, 'skipped — data fresh');
-      return;
-    }
-
+    const progress: SyncProgress = { committed: 0 };
     try {
-      const client = createCfbdClient();
+      if (await isDataFresh(provider, sport)) {
+        console.log('[syncCollegeFootballNightly] Data is fresh — skipping provider call.');
+        await writeSyncRun(provider, sport, 'skipped', 0, null, 'skipped — data fresh');
+        return;
+      }
+
+      const client = createCfbdClient(apiKey);
       const [games, teamStats] = await Promise.all([
         client.getKentuckyGames(CURRENT_SEASON_FOOTBALL),
         client.getKentuckyTeamStats(CURRENT_SEASON_FOOTBALL),
       ]);
 
-      const gameCount = await persistGames(games, CURRENT_SEASON_FOOTBALL);
-      const statCount = await persistTeamStats(teamStats);
+      const gameCount = await persistGames(games, CURRENT_SEASON_FOOTBALL, sport, progress);
+      const statCount = await persistTeamStats(teamStats, progress);
 
       const total = gameCount + statCount;
       console.log(`[syncCollegeFootballNightly] Synced ${total} records.`);
@@ -186,44 +299,44 @@ export const syncCollegeFootballNightly = onSchedule(
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[syncCollegeFootballNightly] Error:', msg);
-      await writeSyncRun(provider, sport, 'error', 0, msg);
+      await writeSyncRun(provider, sport, 'error', progress.committed, msg);
     }
   },
 );
 
 /**
  * Nightly basketball sync from CollegeBasketballData.
- * Skipped when CBBD_API_KEY is absent; staleness-checked at 24 h.
+ * Skipped when CBBD_API_KEY is absent; staleness-checked at FRESHNESS_WINDOW_HOURS.
  */
 export const syncCollegeBasketballNightly = onSchedule(
-  { schedule: 'every day 03:30', timeZone: 'America/New_York' },
+  { schedule: 'every day 03:30', timeZone: 'America/New_York', secrets: [CBBD_API_KEY] },
   async () => {
     const provider = 'cbbd' as const;
     const sport = 'mens_basketball' as const;
-    const apiKey = process.env.CBBD_API_KEY ?? '';
+    const apiKey = CBBD_API_KEY.value();
 
     if (!apiKey) {
       console.log('[syncCollegeBasketballNightly] Skipped — CBBD_API_KEY not set.');
-      await writeSyncRun(provider, sport, 'success', 0, null, 'skipped — no key');
+      await writeSyncRun(provider, sport, 'skipped', 0, null, 'skipped — no key');
       return;
     }
 
-    const fresh = await isDataFresh(provider, sport);
-    if (fresh) {
-      console.log('[syncCollegeBasketballNightly] Data is fresh — skipping provider call.');
-      await writeSyncRun(provider, sport, 'success', 0, null, 'skipped — data fresh');
-      return;
-    }
-
+    const progress: SyncProgress = { committed: 0 };
     try {
-      const client = createCbbdClient();
+      if (await isDataFresh(provider, sport)) {
+        console.log('[syncCollegeBasketballNightly] Data is fresh — skipping provider call.');
+        await writeSyncRun(provider, sport, 'skipped', 0, null, 'skipped — data fresh');
+        return;
+      }
+
+      const client = createCbbdClient(apiKey);
       const [games, teamStats] = await Promise.all([
         client.getKentuckyGames(CURRENT_SEASON_BASKETBALL),
         client.getKentuckyTeamStats(CURRENT_SEASON_BASKETBALL),
       ]);
 
-      const gameCount = await persistGames(games, CURRENT_SEASON_BASKETBALL);
-      const statCount = await persistTeamStats(teamStats);
+      const gameCount = await persistGames(games, CURRENT_SEASON_BASKETBALL, sport, progress);
+      const statCount = await persistTeamStats(teamStats, progress);
 
       const total = gameCount + statCount;
       console.log(`[syncCollegeBasketballNightly] Synced ${total} records.`);
@@ -231,7 +344,7 @@ export const syncCollegeBasketballNightly = onSchedule(
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[syncCollegeBasketballNightly] Error:', msg);
-      await writeSyncRun(provider, sport, 'error', 0, msg);
+      await writeSyncRun(provider, sport, 'error', progress.committed, msg);
     }
   },
 );

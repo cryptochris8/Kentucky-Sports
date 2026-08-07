@@ -144,7 +144,7 @@ class _PregameSection extends ConsumerWidget {
           children: <Widget>[
             Pill(
               label: 'PREGAME',
-              color: BgColors.deepBlue,
+              color: Theme.of(context).colorScheme.primary,
               icon: Icons.sports_rounded,
             ),
             const SizedBox(width: 8),
@@ -173,7 +173,7 @@ class _PregameSection extends ConsumerWidget {
                   variant: MatchupHeroVariant.broadcast,
                 ),
                 const SizedBox(height: 12),
-                CountdownStrip(target: game.startTime),
+                CountdownStrip(target: game.startTime, sport: game.sport),
                 if (s != null) ...<Widget>[
                   const SizedBox(height: 12),
                   _MatchupVerdict(summary: s),
@@ -355,11 +355,16 @@ class _TeamComparisonCard extends StatelessWidget {
             children: <Widget>[
               Text('Team Comparison', style: text.titleMedium),
               const Spacer(),
-              Text('UK', style: BgTypography.eyebrow(BgColors.deepBlue)),
+              Text(
+                'UK',
+                style: BgTypography.eyebrow(
+                    Theme.of(context).colorScheme.primary),
+              ),
               const SizedBox(width: 36),
               Text(
                 game.opponentShort,
-                style: BgTypography.eyebrow(BgColors.goldDark),
+                style: BgTypography.eyebrow(
+                    Theme.of(context).colorScheme.tertiary),
               ),
             ],
           ),
@@ -368,13 +373,18 @@ class _TeamComparisonCard extends StatelessWidget {
             final double ky = c.kentucky[key]!;
             final double opp = c.opponent[key]!;
             final MetricLabel meta = labelFor(key, sport: game.sport);
-            final bool kyWins =
-                meta.higherIsBetter ? ky >= opp : ky <= opp;
+            // Strict comparison — equal values are a tie, never a UK edge.
+            final ({bool kentuckyWins, bool tie}) edge = compareEdge(
+              kentucky: ky,
+              opponent: opp,
+              higherIsBetter: meta.higherIsBetter,
+            );
             return CompareRow(
               label: meta.shortLabel,
               kentuckyText: formatMetricValue(key, ky, sport: game.sport),
               opponentText: formatMetricValue(key, opp, sport: game.sport),
-              kentuckyWins: kyWins,
+              kentuckyWins: edge.kentuckyWins,
+              tie: edge.tie,
               opponentName: game.opponentShort,
             );
           }),
@@ -671,6 +681,22 @@ class _PostgameSection extends ConsumerWidget {
 
   final AsyncValue<Game?> lastFinal;
 
+  /// Postgame color line derived ONLY from the game doc: outcome from
+  /// [Game.kentuckyWon], location from `venue`/`isHome`. Null (no headline)
+  /// when the outcome is unknown — never an asserted venue or result.
+  String? _headline(Game game) {
+    final bool? won = game.kentuckyWon;
+    if (won == null) return null;
+    final String where = game.venue.isNotEmpty
+        ? ' at ${game.venue}'
+        : game.isHome
+            ? ' at home'
+            : ' on the road';
+    return won
+        ? 'Cats take care of business$where.'
+        : 'Tough one$where.';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return lastFinal.maybeWhen(
@@ -687,9 +713,7 @@ class _PostgameSection extends ConsumerWidget {
             MatchupHero(
               game: game,
               variant: MatchupHeroVariant.broadcast,
-              headline: game.kentuckyWon
-                  ? 'Cats take care of business at home.'
-                  : 'Tough one at Kroger Field.',
+              headline: _headline(game),
             ),
             const SizedBox(height: 12),
             _PostgameResult(game: game),
@@ -712,18 +736,30 @@ class _PostgameResult extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
-    final bool won = game.kentuckyWon;
+    final ThemeData theme = Theme.of(context);
+    final TextTheme text = theme.textTheme;
+    // Tri-state outcome: a final doc without a result or scores must read as
+    // "Final", never a false "Kentucky Loss" (hard rule 6).
+    final bool? won = game.kentuckyWon;
+    final bool hasScores =
+        game.kentuckyScore != null && game.opponentScore != null;
+    final Color accent = won == null
+        ? theme.colorScheme.primary
+        : won
+            ? BgColors.positive
+            : BgColors.negative;
     return BgCard(
-      color: won
-          ? BgColors.positive.withValues(alpha: 0.08)
-          : BgColors.negative.withValues(alpha: 0.08),
+      color: won == null
+          ? theme.colorScheme.surfaceContainerHighest
+          : accent.withValues(alpha: 0.08),
       borderColor: Colors.transparent,
       child: Row(
         children: <Widget>[
           Icon(
-            won ? Icons.emoji_events_rounded : Icons.sports_score_rounded,
-            color: won ? BgColors.positive : BgColors.negative,
+            won == true
+                ? Icons.emoji_events_rounded
+                : Icons.sports_score_rounded,
+            color: accent,
             size: 28,
           ),
           const SizedBox(width: 12),
@@ -732,16 +768,25 @@ class _PostgameResult extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  won ? 'Kentucky Win' : 'Kentucky Loss',
-                  style: text.titleLarge?.copyWith(
-                    color: won ? BgColors.positive : BgColors.negative,
+                  won == null
+                      ? 'Final'
+                      : won
+                          ? 'Kentucky Win'
+                          : 'Kentucky Loss',
+                  style: text.titleLarge?.copyWith(color: accent),
+                ),
+                // Only show a score line the doc can actually back up.
+                if (hasScores)
+                  Text(
+                    'Final: Kentucky ${game.kentuckyScore} — '
+                    '${game.opponentName} ${game.opponentScore}',
+                    style: text.bodyMedium,
+                  )
+                else
+                  Text(
+                    'Kentucky vs ${game.opponentName} — score unavailable',
+                    style: text.bodyMedium,
                   ),
-                ),
-                Text(
-                  'Final: Kentucky ${game.kentuckyScore} — '
-                  '${game.opponentName} ${game.opponentScore}',
-                  style: text.bodyMedium,
-                ),
               ],
             ),
           ),

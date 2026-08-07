@@ -2,6 +2,7 @@
 import * as admin from 'firebase-admin';
 
 let _app: admin.app.App | undefined;
+let _db: admin.firestore.Firestore | undefined;
 
 export function getApp(): admin.app.App {
   if (!_app) {
@@ -11,7 +12,13 @@ export function getApp(): admin.app.App {
 }
 
 export function getDb(): admin.firestore.Firestore {
-  return getApp().firestore();
+  if (!_db) {
+    _db = getApp().firestore();
+    // Provider payloads legitimately omit fields (e.g. scores on scheduled games);
+    // drop undefined values instead of throwing on every write.
+    _db.settings({ ignoreUndefinedProperties: true });
+  }
+  return _db;
 }
 
 export function getAuth(): admin.auth.Auth {

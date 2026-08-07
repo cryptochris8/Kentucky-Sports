@@ -1,4 +1,9 @@
 /// Percentile ranking helpers (docs/06 — Percentile rankings).
+///
+/// PARITY: the formula, empty-population semantics, and tier ladder are
+/// mirrored exactly in the TypeScript twin
+/// (packages/stats_engine/typescript/src/percentile.ts). Change one side only
+/// in lockstep with the other — both test suites assert the same fixtures.
 library;
 
 /// A quality tier derived from a percentile, used for color + label.
@@ -27,17 +32,19 @@ class PercentileResult {
   const PercentileResult({
     required this.metric,
     required this.value,
-    required this.percentile,
-    required this.tier,
+    this.percentile,
+    this.tier,
     required this.explanation,
   });
 
   final String metric;
   final double value;
 
-  /// 0..100 national percentile.
-  final int percentile;
-  final PercentileTier tier;
+  /// 0..100 national percentile, or null when no comparison data was available.
+  final int? percentile;
+
+  /// Quality tier, or null when no comparison data was available.
+  final PercentileTier? tier;
   final String explanation;
 }
 
@@ -52,25 +59,31 @@ PercentileTier tierForPercentile(int percentile) {
 
 /// Computes the percentile of [value] within [population] (0..100).
 ///
-/// Uses the "fraction of values at or below" definition. If [lowerIsBetter]
-/// is true (e.g. points allowed), the percentile is inverted so that a better
-/// value always yields a higher percentile.
-int percentileOf(
+/// Uses the standard mid-rank definition — (below + 0.5 * equal) / n * 100 —
+/// rounded to an integer and clamped to 0..100. If [lowerIsBetter] is true
+/// (e.g. points allowed), the percentile is inverted so that a better value
+/// always yields a higher percentile.
+///
+/// Returns null for an empty [population] — there is no basis for a rank, and
+/// callers must render "no comparison data" rather than manufacture a tier.
+int? percentileOf(
   double value,
   List<double> population, {
   bool lowerIsBetter = false,
 }) {
-  if (population.isEmpty) return 50;
-  final int atOrBelow = population.where((double v) => v <= value).length;
-  int pct = ((atOrBelow / population.length) * 100).round();
-  if (lowerIsBetter) pct = 100 - pct;
-  return pct.clamp(0, 100);
+  if (population.isEmpty) return null;
+  final int below = population.where((double v) => v < value).length;
+  final int equal = population.where((double v) => v == value).length;
+  double rawPct = ((below + 0.5 * equal) / population.length) * 100;
+  if (lowerIsBetter) rawPct = 100 - rawPct;
+  return rawPct.round().clamp(0, 100);
 }
 
 /// Convenience that bundles a value's percentile + tier + explanation.
 ///
 /// When a real [population] is unavailable (demo data), pass a precomputed
-/// [knownPercentile] from the seed instead.
+/// [knownPercentile] from the seed instead. With neither, the result carries a
+/// null percentile/tier and an honest "no comparison data" explanation.
 PercentileResult evaluatePercentile({
   required String metric,
   required double value,
@@ -78,9 +91,16 @@ PercentileResult evaluatePercentile({
   int? knownPercentile,
   bool lowerIsBetter = false,
 }) {
-  final int pct =
+  final int? pct =
       knownPercentile ??
       percentileOf(value, population, lowerIsBetter: lowerIsBetter);
+  if (pct == null) {
+    return PercentileResult(
+      metric: metric,
+      value: value,
+      explanation: 'No comparison data available.',
+    );
+  }
   final PercentileTier tier = tierForPercentile(pct);
   return PercentileResult(
     metric: metric,

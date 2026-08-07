@@ -7,6 +7,14 @@ import type { CfbdGameDto, CfbdTeamStatDto } from '../ingest/providers/cfbdClien
 import type { CbbdGameDto, CbbdTeamMetricsDto } from '../ingest/providers/cbbdClient';
 import { normalizeCfbdGame, normalizeCfbdTeamStat } from '../ingest/providers/cfbdClient';
 import { normalizeCbbdGame, normalizeCbbdTeamStat } from '../ingest/providers/cbbdClient';
+import {
+  deriveKentuckySide,
+  gameDayKey,
+  gameMatchKey,
+  hasAnyStatValue,
+  isKentuckyTeamName,
+  opponentTeamId,
+} from '../ingest/persistLogic';
 
 // ── CFBD game normalization ──────────────────────────────────────────────────
 
@@ -183,5 +191,99 @@ describe('normalizeCbbdTeamStat', () => {
     const stat = normalizeCbbdTeamStat({ team: 'Kentucky' }, 2026);
     expect(stat.stats['adjOffRating']).toBeNull();
     expect(stat.stats['tempo']).toBeNull();
+  });
+});
+
+// ── Persist matching logic (curated-doc dedupe) ──────────────────────────────
+
+describe('isKentuckyTeamName', () => {
+  it('matches "Kentucky" regardless of case/whitespace', () => {
+    expect(isKentuckyTeamName('Kentucky')).toBe(true);
+    expect(isKentuckyTeamName('  kentucky ')).toBe(true);
+  });
+
+  it('never matches other Kentucky schools', () => {
+    expect(isKentuckyTeamName('Western Kentucky')).toBe(false);
+    expect(isKentuckyTeamName('Eastern Kentucky')).toBe(false);
+    expect(isKentuckyTeamName('Kentucky State')).toBe(false);
+  });
+});
+
+describe('deriveKentuckySide', () => {
+  it('detects a home game and names the opponent', () => {
+    const side = deriveKentuckySide({ homeTeamName: 'Kentucky', awayTeamName: 'Youngstown State' });
+    expect(side).toEqual({ isHome: true, opponentName: 'Youngstown State' });
+  });
+
+  it('detects an away game', () => {
+    const side = deriveKentuckySide({ homeTeamName: 'Texas A&M', awayTeamName: 'Kentucky' });
+    expect(side).toEqual({ isHome: false, opponentName: 'Texas A&M' });
+  });
+
+  it('returns null when neither side is Kentucky', () => {
+    expect(deriveKentuckySide({ homeTeamName: 'Duke', awayTeamName: 'Louisville' })).toBeNull();
+  });
+});
+
+describe('gameDayKey / gameMatchKey', () => {
+  it('extracts the Eastern-time day from an ISO string', () => {
+    expect(gameDayKey('2026-09-05T23:00:00.000Z')).toBe('2026-09-05');
+    // Seed docs carry an offset — same instant, same ET day
+    expect(gameDayKey('2026-09-05T19:00:00-04:00')).toBe('2026-09-05');
+  });
+
+  it('keeps an evening ET tip on the ET calendar day (not the UTC rollover day)', () => {
+    // 9:30pm EST on Nov 9 is already Nov 10 in UTC — the key must stay Nov 9.
+    expect(gameDayKey('2026-11-10T02:30:00.000Z')).toBe('2026-11-09');
+  });
+
+  it('handles Firestore Timestamp-like objects', () => {
+    const ts = { toDate: () => new Date('2026-11-10T02:30:00.000Z') };
+    expect(gameDayKey(ts)).toBe('2026-11-09');
+  });
+
+  it('returns null for unparseable values', () => {
+    expect(gameDayKey('not a date')).toBeNull();
+    expect(gameDayKey(undefined)).toBeNull();
+    expect(gameDayKey(null)).toBeNull();
+  });
+
+  it('builds the same match key from a curated doc and a provider row', () => {
+    // Curated seed doc: startTime "2026-09-05T19:00:00-04:00", opponent "Youngstown State"
+    const curated = gameMatchKey('football', '2026-09-05T19:00:00-04:00', 'Youngstown State');
+    // CFBD row: start_date "2026-09-05T23:00:00.000Z", away_team "Youngstown State"
+    const provider = gameMatchKey('football', '2026-09-05T23:00:00.000Z', 'youngstown state');
+    expect(curated).toBe('football|2026-09-05|youngstown state');
+    expect(provider).toBe(curated);
+  });
+
+  it('matches a 7:30pm ET kickoff to the curated timeTbd doc for that ET day', () => {
+    // Curated seed doc (fb_2026_tennessee): timeTbd placeholder on the ET calendar day
+    const curated = gameMatchKey('football', '2026-11-07T15:30:00-05:00', 'Tennessee');
+    // CFBD announces the real kickoff: 7:30pm EST = 2026-11-08T00:30Z — a UTC day
+    // key would put this on Nov 8 and mint a duplicate game.
+    const provider = gameMatchKey('football', '2026-11-07T19:30:00-05:00', 'tennessee');
+    expect(curated).toBe('football|2026-11-07|tennessee');
+    expect(provider).toBe(curated);
+  });
+});
+
+describe('opponentTeamId', () => {
+  it('slugs opponents to the seed convention', () => {
+    expect(opponentTeamId('Youngstown State')).toBe('opp_youngstown_state');
+    expect(opponentTeamId('Texas A&M')).toBe('opp_texas_am');
+    expect(opponentTeamId('LSU')).toBe('opp_lsu');
+  });
+});
+
+describe('hasAnyStatValue', () => {
+  it('true when at least one stat is present', () => {
+    expect(hasAnyStatValue({ pointsPerGame: 29.4, totalYards: null })).toBe(true);
+    expect(hasAnyStatValue({ label: 'ok' })).toBe(true);
+  });
+
+  it('false for an all-null payload (must not be persisted as official)', () => {
+    expect(hasAnyStatValue({ pointsPerGame: null, totalYards: null })).toBe(false);
+    expect(hasAnyStatValue({})).toBe(false);
   });
 });

@@ -1,5 +1,8 @@
 // Typed interfaces for Firestore collections used by the admin portal.
 // These are local to this app; they mirror docs/04_FIREBASE_DATA_MODEL.md.
+// The enum unions below MUST stay aligned with the canonical declarations in
+// packages/shared_models/src/index.ts — Cloud Functions validate against those,
+// so a value that only exists here creates documents no consumer can handle.
 
 import type { Timestamp } from 'firebase/firestore';
 
@@ -11,7 +14,8 @@ export type Sport =
   | 'volleyball'
   | 'high_school';
 
-export type GameStatus = 'scheduled' | 'live' | 'halftime' | 'final' | 'cancelled' | 'postponed';
+// Canonical set (shared_models). Note the one-L 'canceled' spelling.
+export type GameStatus = 'scheduled' | 'live' | 'final' | 'postponed' | 'canceled';
 
 export interface Game {
   id: string;
@@ -35,15 +39,20 @@ export interface Game {
   isHome?: boolean;
   rivalry?: string;
   result?: 'win' | 'loss' | 'tie';
+  /** UID of the admin who last edited this game through the portal. */
+  lastEditedBy?: string;
   updatedAt?: Timestamp | string;
 }
 
+// Canonical set (shared_models) — the Functions scoring path rejects anything else.
 export type PredictionType =
   | 'winner'
   | 'margin_bucket'
+  | 'exact_score'
   | 'threes_range'
-  | 'total_points'
-  | 'custom';
+  | 'leading_scorer'
+  | 'stat_over_under'
+  | 'upset_pick';
 
 export type PredictionStatus = 'open' | 'closed' | 'scored' | 'cancelled';
 
@@ -137,7 +146,9 @@ export interface LegendBrief {
   sources: string[];
 }
 
-export type SyncStatus = 'success' | 'error' | 'running' | 'partial';
+// Canonical set (shared_models SyncRunStatus) — Functions never write 'partial'.
+// 'skipped' = a no-op run (no API key, or data already fresh) — rendered amber.
+export type SyncStatus = 'success' | 'error' | 'running' | 'skipped';
 
 export interface SyncRun {
   id: string;

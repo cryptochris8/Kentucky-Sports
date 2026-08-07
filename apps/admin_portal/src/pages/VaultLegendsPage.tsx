@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { toDisplayDate } from '../data/firestore';
 import { listVaultLegends } from '../data/vault';
 import type { VaultLegend, VaultLegendStatus } from '../data/types';

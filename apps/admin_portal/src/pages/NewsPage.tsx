@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { listNewsCards, createNewsCard, updateNewsCard, toDisplayDate } from '../data/firestore';
+import { useAuth } from '../auth/AuthContext';
 import type { NewsCard, Sport } from '../data/types';
 import {
   PageHeader, Button, Badge, Table, Thead, Th, Tbody, Tr, Td,
@@ -27,6 +28,7 @@ const EMPTY_FORM: NewsForm = {
 };
 
 export function NewsPage() {
+  const { user } = useAuth();
   const [cards, setCards] = useState<NewsCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -35,11 +37,15 @@ export function NewsPage() {
   const [form, setForm] = useState<NewsForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  // Failures from table-row actions (e.g. the featured toggle) — shown above
+  // the table without hiding it.
+  const [actionError, setActionError] = useState('');
 
   const load = async () => {
     setLoading(true);
     try {
       setCards(await listNewsCards());
+      setError('');
     } catch (err: unknown) {
       setError((err as { message?: string }).message ?? 'Failed to load news cards.');
     } finally {
@@ -85,6 +91,7 @@ export function NewsPage() {
           featured: form.featured,
         });
       } else {
+        // publishedAt/createdAt are stamped with serverTimestamp() in the data layer.
         await createNewsCard({
           title: form.title,
           sourceName: form.sourceName,
@@ -92,8 +99,7 @@ export function NewsPage() {
           summary: form.summary,
           sport: form.sport as Sport,
           featured: form.featured,
-          publishedAt: new Date().toISOString(),
-          createdBy: 'admin',
+          createdBy: user?.uid ?? 'unknown',
           tags: [],
         });
       }
@@ -107,11 +113,15 @@ export function NewsPage() {
   };
 
   const toggleFeatured = async (c: NewsCard) => {
+    setActionError('');
     try {
       await updateNewsCard(c.id, { featured: !c.featured });
       await load();
-    } catch {
-      // ignore
+    } catch (err: unknown) {
+      // A silent failure here reads as "the click didn't register" — surface it.
+      setActionError(
+        (err as { message?: string }).message ?? `Failed to update "${c.title}".`,
+      );
     }
   };
 
@@ -133,6 +143,9 @@ export function NewsPage() {
 
       {loading && <LoadingState />}
       {error && <ErrorState message={error} />}
+      {actionError && (
+        <p className="text-xs text-red-600 bg-red-50 rounded p-2">{actionError}</p>
+      )}
 
       {!loading && !error && (
         cards.length === 0

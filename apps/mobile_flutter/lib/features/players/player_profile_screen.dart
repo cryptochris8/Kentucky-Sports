@@ -211,6 +211,7 @@ class _PlayerStatGrid extends StatelessWidget {
           itemBuilder: (BuildContext context, int i) {
             final MapEntry<String, dynamic> e = entries[i];
             final MetricLabel meta = playerLabelFor(e.key);
+            final ColorScheme scheme = Theme.of(context).colorScheme;
             return BgCard(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -219,14 +220,14 @@ class _PlayerStatGrid extends StatelessWidget {
                 children: <Widget>[
                   Text(
                     meta.shortLabel.toUpperCase(),
-                    style: BgTypography.eyebrow(BgColors.slate),
+                    style: BgTypography.eyebrow(scheme.onSurfaceVariant),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     formatMetricValue(e.key, (e.value as num).toDouble(),
                         sport: sport),
-                    style: BgTypography.statNumber(BgColors.deepBlue, size: 24),
+                    style: BgTypography.statNumber(scheme.primary, size: 24),
                   ),
                   Text(
                     meta.displayName,
@@ -241,7 +242,7 @@ class _PlayerStatGrid extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         BgCard(
-          color: BgColors.blueTint,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderColor: Colors.transparent,
           child: SourceConfidenceRow(
             source: stat.source,

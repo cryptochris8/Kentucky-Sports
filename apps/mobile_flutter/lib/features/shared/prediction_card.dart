@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/colors.dart';
-import '../../app/theme/typography.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/local_state.dart';
 import '../../core/utils/format.dart';
@@ -210,63 +209,5 @@ class _OptionButtonState extends State<_OptionButton> {
   void _set(bool value) {
     if (widget.onTap == null) return;
     if (_pressed != value) setState(() => _pressed = value);
-  }
-}
-
-/// A compact "prediction prompt" used on Pulse to nudge a daily pick.
-class PredictionPrompt extends StatelessWidget {
-  const PredictionPrompt({
-    super.key,
-    required this.prediction,
-    required this.onTap,
-  });
-
-  final Prediction prediction;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
-    return BgCard(
-      gradient: const LinearGradient(
-        colors: <Color>[BgColors.blueMid, BgColors.deepBlue],
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-      ),
-      onTap: onTap,
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.task_alt_rounded, color: BgColors.goldBright),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'TODAY\'S PICK · +${prediction.points} XP',
-                  style: BgTypography.eyebrow(BgColors.goldBright),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  prediction.question,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: text.titleMedium?.copyWith(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right_rounded, color: Colors.white),
-        ],
-      ),
-    );
   }
 }

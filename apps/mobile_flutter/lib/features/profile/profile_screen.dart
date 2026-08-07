@@ -158,7 +158,9 @@ class _PredictionRecordCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final PredictionRecord r = user.predictionRecord;
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -173,10 +175,10 @@ class _PredictionRecordCard extends StatelessWidget {
                 child: _RecordStat(
                   value: '${r.correct}/${r.total}',
                   label: 'Correct',
-                  color: BgColors.deepBlue,
+                  color: scheme.primary,
                 ),
               ),
-              _vDivider(),
+              _vDivider(scheme),
               Expanded(
                 child: _RecordStat(
                   value: Fmt.percent(r.accuracy),
@@ -184,12 +186,12 @@ class _PredictionRecordCard extends StatelessWidget {
                   color: BgColors.positive,
                 ),
               ),
-              _vDivider(),
+              _vDivider(scheme),
               Expanded(
                 child: _RecordStat(
                   value: '${r.streak}',
                   label: 'Streak',
-                  color: BgColors.goldDark,
+                  color: scheme.primary,
                   icon: r.streak > 0 ? Icons.local_fire_department_rounded : null,
                 ),
               ),
@@ -205,10 +207,10 @@ class _PredictionRecordCard extends StatelessWidget {
     );
   }
 
-  Widget _vDivider() => Container(
+  Widget _vDivider(ColorScheme scheme) => Container(
         width: 1,
         height: 40,
-        color: BgColors.hairline,
+        color: scheme.outline,
       );
 }
 
@@ -301,11 +303,12 @@ class _EarnedBadgeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color c = BgColors.rarity(badge.rarity);
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Container(
       width: 100,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: BgColors.surface,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: c.withValues(alpha: 0.4)),
       ),
@@ -331,10 +334,10 @@ class _EarnedBadgeChip extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: BgColors.ink,
+              color: scheme.onSurface,
             ),
           ),
         ],

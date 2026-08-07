@@ -70,7 +70,7 @@ async function draftWithLLM(b: Brief): Promise<Editorial> {
   const res = await client.messages.parse({
     model: MODEL, max_tokens: 4096,
     thinking: { type: "adaptive" },
-    output_config: { effort: "medium", format: zodOutputFormat(Schema, "legend") },
+    output_config: { effort: "medium", format: zodOutputFormat(Schema) },
     system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
     messages: [{ role: "user", content: `Write the feature on ${b.subject} (${b.sport}, ${b.era}). Facts:\n- ${b.facts.join("\n- ")}` }],
   });
@@ -98,7 +98,9 @@ async function draftWithLLM(b: Brief): Promise<Editorial> {
       id: brief.id, type: "legend", subject: brief.subject, sport: brief.sport, era: brief.era,
       ...editorial,
       sources: brief.sources, model: hasKey ? MODEL : "template",
-      status: "draft", confidence: "researched", generatedAt: now,
+      // updatedAt tracks the last content change (the admin editor re-stamps it
+      // on every edit — see apps/admin_portal/src/data/vault.ts).
+      status: "draft", confidence: "researched", generatedAt: now, updatedAt: now,
     });
     console.log(`  ${editorial.title}`);
   }

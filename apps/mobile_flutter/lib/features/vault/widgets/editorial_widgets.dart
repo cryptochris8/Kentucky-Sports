@@ -318,12 +318,16 @@ class EditorialSourcesFooter extends StatelessWidget {
     required this.confidence,
     required this.model,
     this.generatedAt,
+    this.updatedAt,
   });
 
   final List<String> sources;
   final String confidence;
   final String model;
   final DateTime? generatedAt;
+
+  /// Last admin-editor save, when the doc carries one.
+  final DateTime? updatedAt;
 
   @override
   Widget build(BuildContext context) {
@@ -371,6 +375,7 @@ class EditorialSourcesFooter extends StatelessWidget {
             'Confidence: $confidence',
             if (model.isNotEmpty) 'Model: $model',
             if (generatedAt != null) 'Generated ${_fmtDate(generatedAt!)}',
+            if (updatedAt != null) 'Updated ${_fmtDate(updatedAt!)}',
           ].join('  ·  '),
           style: text.bodySmall?.copyWith(fontSize: 11),
         ),

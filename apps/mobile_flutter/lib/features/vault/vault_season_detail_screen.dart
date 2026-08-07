@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/colors.dart';
 import '../../app/theme/theme.dart';
 import '../../app/theme/typography.dart';
 import '../../core/models/models.dart';
+import '../../core/providers/vault_providers.dart';
 import '../../core/widgets/widgets.dart';
 import 'widgets/widgets.dart';
 
@@ -15,8 +17,42 @@ import 'widgets/widgets.dart';
 /// "Bluegrass Editorial" skin.
 ///
 /// Route: /vault/season/:seasonId  (pushed as a full-screen detail above shell)
-class VaultSeasonDetailScreen extends StatelessWidget {
-  const VaultSeasonDetailScreen({super.key, required this.season});
+class VaultSeasonDetailScreen extends ConsumerWidget {
+  const VaultSeasonDetailScreen({super.key, required this.seasonId});
+
+  final String seasonId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AsyncValue<VaultSeason?> seasonAsync =
+        ref.watch(vaultSeasonByIdProvider(seasonId));
+
+    return seasonAsync.when(
+      loading: () => const Scaffold(
+        body: LoadingView(label: 'Opening the Vault'),
+      ),
+      error: (Object e, _) => Scaffold(
+        appBar: AppBar(title: const Text('The Vault')),
+        body: ErrorView(message: '$e'),
+      ),
+      data: (VaultSeason? season) {
+        if (season == null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('The Vault')),
+            body: const EmptyView(
+              title: 'Season not found',
+              icon: Icons.calendar_today_rounded,
+            ),
+          );
+        }
+        return _SeasonReader(season: season);
+      },
+    );
+  }
+}
+
+class _SeasonReader extends StatelessWidget {
+  const _SeasonReader({required this.season});
 
   final VaultSeason season;
 

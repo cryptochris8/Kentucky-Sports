@@ -1,345 +1,41 @@
 /**
- * Unit tests for the article generator (generate_articles.ts).
+ * Unit tests for the article generator (scripts/generate_articles.ts).
  *
  * Tested here (pure functions, no network, no Firestore, no API key):
  *   1. assembleGameContext — pulls the correct data for a given game ID
- *   2. buildTemplateArticle — produces a valid article with all required fields
- *   3. Provenance stamping — model:"seed_template", sources array, generatedAt present
+ *   2. buildTemplateArticle — produces a valid article with all required fields,
+ *      and never asserts a Kentucky edge the stored data doesn't support
+ *   3. buildArticleDoc — draft-by-default status, honest provenance derived
+ *      from the underlying docs, spotlight playerIds bound by identity
+ *   4. findBettingLanguage — the pre-write guard scan
  *
- * We import the two exported functions directly from generate_articles.ts.
- * Because that file uses `import.meta.url` to locate seed data, we set
- * SEED_PATH_OVERRIDE via a module-level env var approach — instead we just
- * point the test at the real dev_seed.json which lives two directories up.
- *
- * Actually: generate_articles.ts resolves SEED_PATH relative to its own
- * __dirname, so importing it from here will correctly resolve
- * ../../seed_data/dev_seed.json from scripts/.
- *
- * The functions under test (assembleGameContext, buildTemplateArticle) are
- * pure — they take data they're given and return results. No side effects.
+ * The functions are imported directly from scripts/generate_articles.ts (its
+ * CLI main() only runs when the file is executed directly). Importing the real
+ * implementations — rather than keeping an inline copy — is deliberate: a
+ * previous copy of this suite drifted out of sync with both the generator and
+ * the seed data, and its fixtures went stale without failing.
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import {
+  assembleGameContext,
+  assertArticleEligible,
+  buildTemplateArticle,
+  buildArticleDoc,
+  findBettingLanguage,
+  kentuckyIsHome,
+  protectedArticleReplacement,
+  type Editorial,
+  type GameContext,
+  type SeedData,
+  type SeedGame,
+} from '../../../scripts/generate_articles';
 
-// ── Load seed data directly (avoid import.meta.url issues in vitest) ─────────
+// ── Load seed data directly ──────────────────────────────────────────────────
 
 const SEED_PATH = resolve(__dirname, '../../../seed_data/dev_seed.json');
-
-interface SeedGame {
-  id: string;
-  gameId?: string;
-  season: number;
-  sport: string;
-  homeTeamId?: string;
-  awayTeamId?: string;
-  opponentName: string;
-  opponentShort?: string;
-  startTime: string;
-  venue?: string;
-  status: 'scheduled' | 'final' | 'live' | 'postponed' | 'canceled';
-  homeScore?: number | null;
-  awayScore?: number | null;
-  broadcast?: string;
-  featured?: boolean;
-  isHome?: boolean;
-  result?: string;
-}
-
-interface GameSummary {
-  id: string;
-  gameId?: string;
-  matchupVerdict?: string;
-  matchupScore?: number;
-  fanConfidence?: number;
-  winProbability?: { kentucky: number; opponent: number; source?: string };
-  teamComparison?: Record<string, Record<string, number>>;
-  keysToGame?: string[];
-  playerToWatch?: { playerId: string; reason: string };
-  statStory?: string;
-}
-
-interface TeamStat {
-  id: string;
-  teamId: string;
-  season: number;
-  sport: string;
-  scope: string;
-  stats: Record<string, number | string | null>;
-}
-
-interface PlayerProfile {
-  id: string;
-  name: string;
-  teamId: string;
-  sport: string;
-  position: string;
-}
-
-interface PlayerStat {
-  id: string;
-  playerId: string;
-  teamId: string;
-  season: number;
-  sport: string;
-  scope: string;
-  stats: Record<string, number | string | null>;
-}
-
-interface SeedData {
-  games: SeedGame[];
-  game_summaries: GameSummary[];
-  team_stats: TeamStat[];
-  player_profiles: PlayerProfile[];
-  player_stats: PlayerStat[];
-}
-
-// ── Inline the core functions under test ─────────────────────────────────────
-// We inline these rather than import from generate_articles.ts to avoid the
-// top-level import.meta.url resolution and zod static import in that file.
-// This also provides isolation — tests test the logic, not the CLI wiring.
-
-function resolveTeamId(sport: string): string {
-  if (sport === 'football') return 'kentucky_football';
-  if (sport === 'mens_basketball') return 'kentucky_mens_basketball';
-  if (sport === 'womens_basketball') return 'kentucky_womens_basketball';
-  return `kentucky_${sport}`;
-}
-
-interface GameContext {
-  game: SeedGame;
-  summary?: GameSummary;
-  teamStats?: TeamStat;
-  relevantPlayerStats: Array<{
-    profile: PlayerProfile;
-    stats: Record<string, number | string | null>;
-  }>;
-}
-
-function assembleGameContext(gameId: string, seed: SeedData): GameContext {
-  const game = seed.games.find((g) => g.id === gameId);
-  if (!game) throw new Error(`Game not found in seed data: ${gameId}`);
-
-  const summary = seed.game_summaries.find(
-    (s) => s.id === gameId || s.gameId === gameId,
-  );
-
-  const teamId = resolveTeamId(game.sport);
-  const season = game.season ?? new Date(game.startTime).getFullYear();
-
-  // Try exact season match first; fall back to the most recent available season
-  // for this team/sport (e.g. 2025 carry-forward stats used for a 2026 preview).
-  let teamStats = seed.team_stats.find(
-    (ts) =>
-      ts.teamId === teamId &&
-      ts.season === season &&
-      ts.scope === 'season' &&
-      ts.sport === game.sport,
-  );
-  if (!teamStats) {
-    const fallbackStats = seed.team_stats
-      .filter((ts) => ts.teamId === teamId && ts.scope === 'season' && ts.sport === game.sport)
-      .sort((a, b) => b.season - a.season);
-    teamStats = fallbackStats[0];
-  }
-
-  const teamProfiles = seed.player_profiles.filter(
-    (p) => p.teamId === teamId && p.sport === game.sport,
-  );
-
-  // Try exact season match; fall back to most recent season for each player.
-  const relevantPlayerStats = teamProfiles
-    .map((profile) => {
-      let statDoc = seed.player_stats.find(
-        (ps) =>
-          ps.playerId === profile.id &&
-          ps.teamId === teamId &&
-          ps.season === season &&
-          ps.sport === game.sport,
-      );
-      if (!statDoc) {
-        const fallback = seed.player_stats
-          .filter(
-            (ps) =>
-              ps.playerId === profile.id &&
-              ps.teamId === teamId &&
-              ps.sport === game.sport,
-          )
-          .sort((a, b) => b.season - a.season);
-        statDoc = fallback[0];
-      }
-      if (!statDoc) return null;
-      return { profile, stats: statDoc.stats };
-    })
-    .filter(
-      (
-        x,
-      ): x is {
-        profile: PlayerProfile;
-        stats: Record<string, number | string | null>;
-      } => x !== null,
-    );
-
-  return { game, summary, teamStats, relevantPlayerStats };
-}
-
-interface Editorial {
-  headline: string;
-  subheadline: string;
-  openingNarrative: string;
-  tacticalBreakdown: { title: string; narrative: string };
-  byTheNumbers: { title: string; items: string[] };
-  playerSpotlights: Array<{
-    name: string;
-    position: string;
-    narrative: string;
-    statline: string;
-  }>;
-  theVerdict: {
-    title: string;
-    prediction: string;
-    confidence: number;
-    narrative: string;
-  };
-  closingLine: string;
-}
-
-function buildTemplateArticle(ctx: GameContext): Editorial {
-  const { game, summary, teamStats } = ctx;
-  const isPreview = game.status === 'scheduled' || game.status === 'live';
-  const opponent = game.opponentName;
-  const venue = game.venue ?? 'home';
-  const sport = game.sport;
-
-  let headline: string;
-  let subheadline: string;
-  if (isPreview) {
-    headline = `${sport === 'football' ? 'Cats Host' : 'Kentucky Welcomes'} ${opponent} — By the Numbers`;
-    subheadline = summary?.statStory
-      ? summary.statStory.split('.')[0] + '.'
-      : `Matchup preview for the upcoming game at ${venue}.`;
-  } else {
-    const homeScore = game.homeScore ?? 0;
-    const awayScore = game.awayScore ?? 0;
-    const wonLost = game.isHome
-      ? homeScore > awayScore
-        ? 'Win'
-        : 'Loss'
-      : awayScore > homeScore
-        ? 'Win'
-        : 'Loss';
-    headline = `Kentucky ${wonLost}: Wildcats vs. ${opponent} — Final Recap`;
-    subheadline = `A look at the numbers behind the final result.`;
-  }
-
-  let openingNarrative: string;
-  if (summary?.statStory) {
-    openingNarrative = summary.statStory;
-  } else if (isPreview) {
-    openingNarrative = `Kentucky returns to ${venue} to take on ${opponent}. The numbers favor the Wildcats — the edge lies in execution.`;
-  } else {
-    const finalScore =
-      game.homeScore != null && game.awayScore != null
-        ? ` ${game.homeScore}–${game.awayScore}`
-        : '';
-    openingNarrative = `The Wildcats and ${opponent} played out a${finalScore} final. The stats told the story.`;
-  }
-
-  const keys = summary?.keysToGame ?? [];
-  const tacticalNarrative =
-    keys.length > 0
-      ? keys.slice(0, 2).join('. ') + '.'
-      : `Kentucky will look to exploit matchup advantages and control tempo throughout the contest.`;
-
-  const byItems: string[] = [];
-  if (teamStats?.stats) {
-    const s = teamStats.stats;
-    if (s['pointsPerGame'] != null) byItems.push(`Points per game: ${s['pointsPerGame']}`);
-    if (s['yardsPerPlay'] != null) byItems.push(`Yards per play: ${s['yardsPerPlay']}`);
-    if (s['turnoverMargin'] != null)
-      byItems.push(
-        `Turnover margin: ${Number(s['turnoverMargin']) >= 0 ? '+' : ''}${s['turnoverMargin']} per game`,
-      );
-    if (s['thirdDownPct'] != null)
-      byItems.push(
-        `Third-down conversion rate: ${(Number(s['thirdDownPct']) * 100).toFixed(0)}%`,
-      );
-    if (s['redZoneScorePct'] != null)
-      byItems.push(
-        `Red-zone scoring rate: ${(Number(s['redZoneScorePct']) * 100).toFixed(0)}%`,
-      );
-    if (s['adjOffRating'] != null) byItems.push(`Adjusted offensive rating: ${s['adjOffRating']}`);
-    if (s['adjDefRating'] != null) byItems.push(`Adjusted defensive rating: ${s['adjDefRating']}`);
-  }
-  if (byItems.length === 0) byItems.push('See the matchup breakdown for detailed statistics.');
-
-  const spotlights = ctx.relevantPlayerStats.slice(0, 3).map(({ profile, stats }) => {
-    const lines: string[] = [];
-    for (const [key, val] of Object.entries(stats)) {
-      if (val != null) lines.push(`${key}: ${val}`);
-    }
-    return {
-      name: profile.name,
-      position: profile.position,
-      narrative: `${profile.name} (${profile.position}) is one to watch in this contest.`,
-      statline: lines.slice(0, 3).join(', ') || 'Stats available in full matchup data.',
-    };
-  });
-
-  if (spotlights.length === 0) {
-    spotlights.push({
-      name: 'Kentucky Offense',
-      position: 'UNIT',
-      narrative: 'The offensive unit\'s efficiency will be the key variable in this matchup.',
-      statline: 'See team stats above.',
-    });
-  }
-
-  const confidence = summary?.fanConfidence ?? 65;
-  const winProb = summary?.winProbability?.kentucky;
-  let prediction: string;
-  if (isPreview) {
-    if (winProb && winProb >= 0.6) {
-      prediction = `Kentucky by double digits`;
-    } else if (winProb && winProb >= 0.5) {
-      prediction = `Kentucky in a close game`;
-    } else {
-      prediction = `A competitive contest — leaning Kentucky`;
-    }
-  } else {
-    const homeScore = game.homeScore ?? 0;
-    const awayScore = game.awayScore ?? 0;
-    const margin = game.isHome ? homeScore - awayScore : awayScore - homeScore;
-    prediction =
-      margin > 0
-        ? `Kentucky wins by ${Math.abs(margin)}`
-        : `Final: ${homeScore}–${awayScore}`;
-  }
-
-  const verdictNarrative =
-    summary?.keysToGame?.[2] ??
-    (isPreview
-      ? 'Execute the gameplan, protect the football, and this one goes Kentucky\'s way.'
-      : 'The final score reflects Kentucky\'s execution when it mattered most.');
-
-  const closingLine = isPreview
-    ? `Game time at ${venue} — the numbers like the home team.`
-    : `Final result locked in. The stats hold up under review.`;
-
-  return {
-    headline,
-    subheadline,
-    openingNarrative,
-    tacticalBreakdown: { title: 'The Chess Match', narrative: tacticalNarrative },
-    byTheNumbers: { title: 'By the Numbers', items: byItems.slice(0, 6) },
-    playerSpotlights: spotlights,
-    theVerdict: { title: 'The Verdict', prediction, confidence, narrative: verdictNarrative },
-    closingLine,
-  };
-}
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
 
 let seed: SeedData;
 
@@ -391,6 +87,16 @@ describe('assembleGameContext', () => {
     }
   });
 
+  it('carries provenance for each player stat doc', () => {
+    const ctx = assembleGameContext('fb_2026_youngstown', seed);
+    for (const ps of ctx.relevantPlayerStats) {
+      expect(ps.statId).toBeTruthy();
+      // The synced seed carries real CFBD player stats
+      expect(ps.source).toBe('cfbd');
+      expect(ps.confidence).toBe('official');
+    }
+  });
+
   it('resolves basketball context for mbb_2026_louisville', () => {
     const ctx = assembleGameContext('mbb_2026_louisville', seed);
     expect(ctx.game.sport).toBe('mens_basketball');
@@ -413,6 +119,31 @@ describe('assembleGameContext', () => {
     expect(ctx.game.status).toBe('final');
     expect(ctx.game.homeScore).toBe(48);
     expect(ctx.game.awayScore).toBe(23);
+  });
+});
+
+// ── Home/away derivation ──────────────────────────────────────────────────────
+
+describe('kentuckyIsHome', () => {
+  it('derives home from homeTeamId even when isHome is absent', () => {
+    const base = assembleGameContext('fb_2025_eastern_michigan', seed).game;
+    expect(kentuckyIsHome({ ...base, isHome: undefined })).toBe(true);
+  });
+
+  it('derives away from awayTeamId', () => {
+    const base = assembleGameContext('fb_2026_texas_am', seed).game;
+    expect(kentuckyIsHome({ ...base, isHome: undefined })).toBe(false);
+  });
+
+  it('throws rather than guessing when nothing identifies the home side', () => {
+    const base = assembleGameContext('fb_2025_eastern_michigan', seed).game;
+    const stripped: SeedGame = {
+      ...base,
+      homeTeamId: undefined,
+      awayTeamId: undefined,
+      isHome: undefined,
+    };
+    expect(() => kentuckyIsHome(stripped)).toThrow('Cannot determine home/away');
   });
 });
 
@@ -502,14 +233,14 @@ describe('buildTemplateArticle', () => {
 
   it('byTheNumbers items include real stats from seed data', () => {
     const art = buildTemplateArticle(ctx);
-    // 2025 team_stats have pointsPerGame: 23.8 (demo)
-    const hasPpg = art.byTheNumbers.items.some((item) => item.includes('23.8'));
+    // 2025 team_stats have pointsPerGame: 23 (real CFBD value)
+    const hasPpg = art.byTheNumbers.items.some((item) => item.includes('Points per game: 23'));
     expect(hasPpg).toBe(true);
   });
 
-  it('player spotlights use players from the football roster', () => {
+  it('player spotlights use players from the real football roster', () => {
     const art = buildTemplateArticle(ctx);
-    const footballPlayers = ['Demo QB1', 'Demo RB1', 'Demo WR1'];
+    const footballPlayers = ['Cutter Boley', 'Seth McGowan', 'Kendrick Law'];
     const foundNames = art.playerSpotlights.map((sp) => sp.name);
     const anyMatch = foundNames.some((n) => footballPlayers.includes(n));
     expect(anyMatch).toBe(true);
@@ -526,6 +257,95 @@ describe('buildTemplateArticle', () => {
       combinedText.includes('Final') ||
       combinedText.includes('locked');
     expect(hasRecapLanguage).toBe(true);
+  });
+
+  // ── W/L derivation (the old isHome-only branch called home wins losses) ──
+
+  it('recap calls a home win a Win even when isHome and result are absent', () => {
+    const base = assembleGameContext('fb_2025_eastern_michigan', seed);
+    const art = buildTemplateArticle({
+      ...base,
+      game: { ...base.game, isHome: undefined, result: undefined },
+    });
+    // Kentucky 48, Eastern Michigan 23 at home
+    expect(art.headline).toContain('Kentucky Win');
+    expect(art.theVerdict.prediction).toBe('Kentucky wins by 25');
+  });
+
+  it('recap calls an away win a Win', () => {
+    const base = assembleGameContext('fb_2025_eastern_michigan', seed);
+    const awayWin: GameContext = {
+      ...base,
+      game: {
+        ...base.game,
+        homeTeamId: 'opp_eastern_michigan',
+        awayTeamId: 'kentucky_football',
+        isHome: undefined,
+        result: undefined,
+        homeScore: 24,
+        awayScore: 31,
+      },
+    };
+    const art = buildTemplateArticle(awayWin);
+    expect(art.headline).toContain('Kentucky Win');
+    expect(art.theVerdict.prediction).toBe('Kentucky wins by 7');
+  });
+
+  it('recap calls an away loss a Loss (no dead "wins" branch)', () => {
+    const base = assembleGameContext('fb_2025_eastern_michigan', seed);
+    const awayLoss: GameContext = {
+      ...base,
+      game: {
+        ...base.game,
+        homeTeamId: 'opp_eastern_michigan',
+        awayTeamId: 'kentucky_football',
+        isHome: undefined,
+        result: undefined,
+        homeScore: 30,
+        awayScore: 20,
+      },
+    };
+    const art = buildTemplateArticle(awayLoss);
+    expect(art.headline).toContain('Kentucky Loss');
+    expect(art.theVerdict.prediction).toBe('Kentucky loses by 10');
+  });
+
+  // ── Honest leans (no unsupported pro-Kentucky assertions) ────────────────
+
+  it('preview leans the opponent when the stored win probability says so', () => {
+    const underdog: GameContext = {
+      ...ctx,
+      summary: {
+        ...ctx.summary!,
+        statStory: undefined,
+        winProbability: { kentucky: 0.35, opponent: 0.65, source: 'seed_demo' },
+      },
+    };
+    const art = buildTemplateArticle(underdog);
+    expect(art.theVerdict.prediction).toBe('A competitive contest — leaning Youngstown State');
+    expect(art.closingLine).toContain('the numbers lean Youngstown State');
+    const fullText = JSON.stringify(art);
+    expect(fullText).not.toContain('leaning Kentucky');
+    expect(fullText).not.toContain('favor the Wildcats');
+  });
+
+  it('preview says so instead of asserting a lean when no projection exists', () => {
+    const noProjection: GameContext = {
+      ...ctx,
+      summary: { ...ctx.summary!, statStory: undefined, winProbability: undefined },
+    };
+    const art = buildTemplateArticle(noProjection);
+    expect(art.theVerdict.prediction).toBe('No projection available for this matchup');
+    expect(art.openingNarrative).toContain('No projection is available');
+    const fullText = JSON.stringify(art);
+    expect(fullText).not.toContain('favor the Wildcats');
+    expect(fullText).not.toContain('the numbers like the home team');
+  });
+
+  it('preview keeps the Kentucky lean when the data actually supports it', () => {
+    // fb_2026_youngstown carries winProbability.kentucky = 0.92
+    const art = buildTemplateArticle(ctx);
+    expect(art.theVerdict.prediction).toBe('Kentucky by double digits');
   });
 });
 
@@ -556,7 +376,7 @@ describe('provenance stamping (template path)', () => {
     }
   });
 
-  it('confidence is a number (not undefined or string)', () => {
+  it('confidence is a number when the summary carries a real fanConfidence', () => {
     const ctx = assembleGameContext('fb_2026_youngstown', seed);
     const art = buildTemplateArticle(ctx);
     expect(typeof art.theVerdict.confidence).toBe('number');
@@ -569,27 +389,170 @@ describe('provenance stamping (template path)', () => {
     expect(art.theVerdict.confidence).toBe(84);
   });
 
-  it('falls back to 65 confidence when no fanConfidence in summary', () => {
+  it('omits confidence entirely when there is no real fanConfidence (never invents one)', () => {
     const ctx = assembleGameContext('fb_2026_youngstown', seed);
-    // Remove fanConfidence from context to test fallback
     const ctxNoConf: GameContext = {
       ...ctx,
       summary: ctx.summary ? { ...ctx.summary, fanConfidence: undefined } : undefined,
     };
     const art = buildTemplateArticle(ctxNoConf);
-    expect(art.theVerdict.confidence).toBe(65);
+    expect(art.theVerdict.confidence).toBeUndefined();
+    // The key must be absent, not present-with-undefined — no fabricated stat pill.
+    expect('confidence' in art.theVerdict).toBe(false);
+    // And it stays absent through the ArticleDoc sink.
+    const doc = buildArticleDoc('fb_2026_youngstown', ctxNoConf, art, 'seed_template');
+    expect(doc.theVerdict.confidence).toBeUndefined();
+  });
+
+  it('omits confidence when the game has no summary at all', () => {
+    const ctx = assembleGameContext('fb_2026_youngstown', seed);
+    const art = buildTemplateArticle({ ...ctx, summary: undefined });
+    expect('confidence' in art.theVerdict).toBe(false);
   });
 });
 
-// ── No betting language audit ─────────────────────────────────────────────────
+// ── buildArticleDoc: draft default + derived provenance + identity binding ───
+
+describe('buildArticleDoc', () => {
+  let ctx: GameContext;
+  let editorial: Editorial;
+
+  beforeAll(() => {
+    ctx = assembleGameContext('fb_2026_youngstown', seed);
+    editorial = buildTemplateArticle(ctx);
+  });
+
+  it('defaults to status "draft" with no publishedAt', () => {
+    const doc = buildArticleDoc('fb_2026_youngstown', ctx, editorial, 'seed_template');
+    expect(doc.status).toBe('draft');
+    expect(doc.publishedAt).toBeUndefined();
+    expect('publishedAt' in doc).toBe(false);
+    expect(doc.generatedAt).toBeTruthy();
+  });
+
+  it('marks published (with publishedAt) only when publish=true', () => {
+    const doc = buildArticleDoc('fb_2026_youngstown', ctx, editorial, 'seed_template', true);
+    expect(doc.status).toBe('published');
+    expect(doc.publishedAt).toBeTruthy();
+  });
+
+  it('derives sources from the underlying docs, not a hardcoded prefix', () => {
+    const doc = buildArticleDoc('fb_2026_youngstown', ctx, editorial, 'seed_template');
+    // team_stats are real CFBD; summary + game are still seed_demo
+    expect(doc.sources).toContain('cfbd:team_stats/kentucky_football_2025_season');
+    expect(doc.sources).toContain('seed_demo:game_summaries/fb_2026_youngstown');
+    expect(doc.sources).toContain('seed_demo:games/fb_2026_youngstown');
+    // spotlighted players contribute their stat docs
+    expect(doc.sources).toContain('cfbd:player_stats/fb_qb_demo_2025');
+    // nothing claims seed_demo for the CFBD-backed docs
+    expect(doc.sources).not.toContain('seed_demo:team_stats/kentucky_football_2025_season');
+  });
+
+  it('article confidence is the weakest input confidence (demo summary => demo)', () => {
+    const doc = buildArticleDoc('fb_2026_youngstown', ctx, editorial, 'seed_template');
+    expect(doc.confidence).toBe('demo');
+  });
+
+  it('article confidence is official only when every input is official', () => {
+    const officialCtx: GameContext = {
+      game: { ...ctx.game, source: 'cfbd' },
+      summary: undefined,
+      teamStats: ctx.teamStats, // cfbd / official
+      relevantPlayerStats: ctx.relevantPlayerStats, // cfbd / official
+    };
+    const officialEditorial = buildTemplateArticle(officialCtx);
+    const doc = buildArticleDoc('fb_2026_youngstown', officialCtx, officialEditorial, 'seed_template');
+    expect(doc.confidence).toBe('official');
+  });
+
+  it('binds spotlight playerIds by name identity, not array index', () => {
+    // Reverse the spotlight order — the LLM controls ordering, we must not
+    // zip by index against relevantPlayerStats.
+    const reversed: Editorial = {
+      ...editorial,
+      playerSpotlights: [...editorial.playerSpotlights].reverse(),
+    };
+    const doc = buildArticleDoc('fb_2026_youngstown', ctx, reversed, 'seed_template');
+    const byName = new Map(ctx.relevantPlayerStats.map((p) => [p.profile.name, p.profile.id]));
+    for (const sp of doc.playerSpotlights) {
+      expect(sp.playerId).toBe(byName.get(sp.name));
+    }
+  });
+
+  it('drops spotlights naming players absent from the provided data', () => {
+    const invented: Editorial = {
+      ...editorial,
+      playerSpotlights: [
+        ...editorial.playerSpotlights,
+        {
+          name: 'Made Up Player',
+          position: 'QB',
+          narrative: 'Not in the data.',
+          statline: 'n/a',
+        },
+      ],
+    };
+    const doc = buildArticleDoc('fb_2026_youngstown', ctx, invented, 'seed_template');
+    expect(doc.playerSpotlights.map((sp) => sp.name)).not.toContain('Made Up Player');
+  });
+});
+
+// ── Betting-language guard scan ──────────────────────────────────────────────
+
+describe('findBettingLanguage guard', () => {
+  it('passes both template articles clean', () => {
+    for (const gameId of ['fb_2026_youngstown', 'mbb_2026_louisville']) {
+      const ctx = assembleGameContext(gameId, seed);
+      const doc = buildArticleDoc(gameId, ctx, buildTemplateArticle(ctx), 'seed_template');
+      expect(findBettingLanguage(doc), `betting term leaked into ${gameId}`).toBeNull();
+    }
+  });
+
+  it('detects each banned term family', () => {
+    expect(findBettingLanguage({ headline: 'Best point spread tonight' })).toBe('point spread');
+    expect(findBettingLanguage({ headline: 'a point-spread pick' })).toBe('point-spread');
+    expect(findBettingLanguage({ narrative: 'stop wagering on it' })).toBe('wagering');
+    expect(findBettingLanguage({ item: 'the over/under sits at 48' })).toBe('over/under');
+    expect(findBettingLanguage({ item: 'the over - under sits at 48' })).toBe('over - under');
+    expect(findBettingLanguage({ item: 'moneyline value' })).toBe('moneyline');
+    expect(findBettingLanguage({ item: 'the money line told the story' })).toBe('money line');
+    expect(findBettingLanguage({ item: 'a three-leg Parlay' })).toBe('parlay');
+    expect(findBettingLanguage({ item: 'your local sportsbooks' })).toBe('sportsbooks');
+    expect(findBettingLanguage({ item: 'ask the bookie' })).toBe('bookie');
+    expect(findBettingLanguage({ item: 'I bet he scores twice' })).toBe('bet');
+    expect(findBettingLanguage({ item: 'betting is banned' })).toBe('betting');
+    expect(findBettingLanguage({ item: 'the odds heavily favor Kentucky' })).toBe('odds');
+    expect(findBettingLanguage({ item: 'the vig eats the profit' })).toBe('vig');
+    expect(findBettingLanguage({ item: 'best team ATS this year' })).toBe('ats');
+    expect(findBettingLanguage({ item: 'a reason to pick against the Cats' })).toBe('pick against');
+    expect(findBettingLanguage({ item: 'he picked against Kentucky all season' })).toBe('picked against');
+  });
+
+  it('does not false-positive on football vocabulary', () => {
+    expect(
+      findBettingLanguage({
+        text: 'The Wildcats spread the field and looked better than the alphabets suggest.',
+      }),
+    ).toBeNull();
+    expect(findBettingLanguage({ text: 'A spread offense with tempo.' })).toBeNull();
+    // "Wildcats" must never trip the whole-word \bats\b term.
+    expect(findBettingLanguage({ text: 'Wildcats stats formats' })).toBeNull();
+    expect(findBettingLanguage({ text: 'They navigate pressure well.' })).toBeNull();
+  });
+});
+
+// ── No betting language audit (template output) ──────────────────────────────
 
 describe('no betting language in template output', () => {
   // Each entry is a whole-word regex — avoids false-positives like "ats" in "Wildcats".
   const BANNED_PATTERNS: Array<{ label: string; regex: RegExp }> = [
+    { label: 'bet/bets/betting', regex: /\bbets?\b|\bbetting\b/ },
     { label: 'odds', regex: /\bodds\b/ },
-    { label: 'wager', regex: /\bwager\b/ },
-    { label: 'parlay', regex: /\bparlay\b/ },
-    { label: 'spread', regex: /\bspread\b/ },
+    { label: 'wager', regex: /\bwager\w*\b/ },
+    { label: 'parlay', regex: /\bparlay\w*\b/ },
+    { label: 'sportsbook', regex: /\bsportsbook\w*\b/ },
+    { label: 'bookie', regex: /\bbookie\w*\b/ },
+    { label: 'point spread', regex: /\bpoint\s+spread\b/ },
     { label: 'moneyline', regex: /\bmoneyline\b/ },
     { label: 'ats (against the spread)', regex: /\bats\b/ },
     { label: 'pick against', regex: /pick against/ },
@@ -612,5 +575,95 @@ describe('no betting language in template output', () => {
     for (const { label, regex } of BANNED_PATTERNS) {
       expect(fullText, `Found banned term: ${label}`).not.toMatch(regex);
     }
+  });
+});
+
+// ── Full GameStatus union: postponed/canceled refusal + honest score-less finals ──
+
+describe('game status eligibility', () => {
+  it.each(['postponed', 'canceled'] as const)(
+    'refuses to build a template article for a %s game',
+    (status) => {
+      const base = assembleGameContext('fb_2026_youngstown', seed);
+      const ctx: GameContext = { ...base, game: { ...base.game, status } };
+      expect(() => buildTemplateArticle(ctx)).toThrow(`status is "${status}"`);
+      expect(() => assertArticleEligible(ctx.game)).toThrow('Refusing to generate');
+    },
+  );
+
+  it('buildArticleDoc refuses postponed/canceled too (guards the LLM path sink)', () => {
+    const base = assembleGameContext('fb_2026_youngstown', seed);
+    const editorial = buildTemplateArticle(base);
+    const ctx: GameContext = { ...base, game: { ...base.game, status: 'canceled' } };
+    expect(() => buildArticleDoc('fb_2026_youngstown', ctx, editorial, 'seed_template')).toThrow(
+      'status is "canceled"',
+    );
+  });
+
+  it('allows every playable status through', () => {
+    const base = assembleGameContext('fb_2026_youngstown', seed);
+    for (const status of ['scheduled', 'live', 'final'] as const) {
+      expect(() => assertArticleEligible({ ...base.game, status })).not.toThrow();
+    }
+  });
+
+  it('recap for a final doc with missing scores never fabricates a 0–0 final', () => {
+    const base = assembleGameContext('fb_2025_eastern_michigan', seed);
+    const ctx: GameContext = {
+      ...base,
+      game: { ...base.game, homeScore: null, awayScore: null, result: undefined },
+    };
+    const art = buildTemplateArticle(ctx);
+    const fullText = JSON.stringify(art);
+    expect(fullText).not.toMatch(/\b0\s*[–-]\s*0\b/);
+    expect(art.theVerdict.prediction).toBe('Final score not yet recorded');
+    // With no scores and no stored result, no W/L claim may be made either.
+    expect(art.headline).not.toContain('Win');
+    expect(art.headline).not.toContain('Loss');
+  });
+});
+
+// ── Published-work protection (apply-articles + Firestore upsert guard) ──────
+
+describe('protectedArticleReplacement', () => {
+  const publishedClaude = { status: 'published', model: 'claude-opus-4-8' };
+
+  it('blocks demoting a published article to draft', () => {
+    const reason = protectedArticleReplacement(publishedClaude, {
+      status: 'draft',
+      model: 'claude-opus-4-8',
+    });
+    expect(reason).toMatch(/demoted to "draft"/);
+  });
+
+  it('blocks replacing a claude-* article with a seed_template regeneration', () => {
+    const reason = protectedArticleReplacement(publishedClaude, {
+      status: 'published',
+      model: 'seed_template',
+    });
+    expect(reason).toMatch(/seed_template regeneration/);
+  });
+
+  it('allows a fresh published claude regeneration over a published claude article', () => {
+    expect(
+      protectedArticleReplacement(publishedClaude, { status: 'published', model: 'claude-opus-4-8' }),
+    ).toBeNull();
+  });
+
+  it('allows anything to replace a draft template', () => {
+    const draftTemplate = { status: 'draft', model: 'seed_template' };
+    expect(
+      protectedArticleReplacement(draftTemplate, { status: 'draft', model: 'seed_template' }),
+    ).toBeNull();
+    expect(
+      protectedArticleReplacement(draftTemplate, { status: 'published', model: 'claude-opus-4-8' }),
+    ).toBeNull();
+  });
+
+  it('protects a draft claude article from a template regeneration (edit work preserved)', () => {
+    const draftClaude = { status: 'draft', model: 'claude-opus-4-8' };
+    expect(
+      protectedArticleReplacement(draftClaude, { status: 'draft', model: 'seed_template' }),
+    ).toMatch(/claude-opus-4-8/);
   });
 });

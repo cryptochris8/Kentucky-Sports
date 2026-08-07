@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../app/theme/colors.dart';
@@ -440,72 +438,4 @@ class _SpringyTapState extends State<_SpringyTap> {
       ),
     );
   }
-}
-
-/// A purely DECORATIVE broadcast accent line — an abstract "energy wave" drawn
-/// across the bottom of a panel. This is NOT real play-by-play/score-over-time
-/// data (the seed has none); it is a fixed, generative wave used only as a
-/// visual broadcast cue and is hidden from semantics. Honors reduce-motion by
-/// rendering statically (the wave never animates as if it were live data).
-class BroadcastWaveAccent extends StatelessWidget {
-  const BroadcastWaveAccent({
-    super.key,
-    this.height = 28,
-    this.color,
-  });
-
-  final double height;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    return ExcludeSemantics(
-      child: SizedBox(
-        height: height,
-        width: double.infinity,
-        child: CustomPaint(
-          painter: _WavePainter(
-            color: color ?? BgColors.goldBright.withValues(alpha: 0.35),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WavePainter extends CustomPainter {
-  _WavePainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint paint = Paint()
-      ..color = color
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final Path path = Path();
-    final double midY = size.height / 2;
-    const int segments = 48;
-    for (int i = 0; i <= segments; i++) {
-      final double x = size.width * (i / segments);
-      // A fixed, non-data decorative waveform (two stacked sines).
-      final double t = i / segments * math.pi * 6;
-      final double y = midY +
-          math.sin(t) * (size.height * 0.22) +
-          math.sin(t * 2.3) * (size.height * 0.10);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _WavePainter oldDelegate) =>
-      oldDelegate.color != color;
 }

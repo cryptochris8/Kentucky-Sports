@@ -23,14 +23,29 @@ if (!CFBD || !CBBD) { console.error("Missing CFBD_API_KEY / CBBD_API_KEY in .env
 
 const OUT = resolve(__dirname, "../seed_data/vault_seasons.json");
 const ASSET = resolve(__dirname, "../apps/mobile_flutter/assets/vault/vault_seasons.json");
+const FORCE = process.argv.includes("--force");
 const now = new Date().toISOString();
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Failed requests (non-200 or thrown fetch) are counted so a partial run can be
+// detected before it overwrites a good file — see the write guard below.
+let failedRequests = 0;
+
 async function getJson(url: string, key: string): Promise<any[]> {
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${key}` } });
-  if (res.status !== 200) { console.warn(`  ! ${res.status} ${url.replace(/Bearer.*/, "")}`); return []; }
-  const d = await res.json();
-  return Array.isArray(d) ? d : d ? [d] : [];
+  try {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${key}` } });
+    if (res.status !== 200) {
+      failedRequests++;
+      console.warn(`  ! ${res.status} ${url.replace(/Bearer.*/, "")}`);
+      return [];
+    }
+    const d = await res.json();
+    return Array.isArray(d) ? d : d ? [d] : [];
+  } catch (err) {
+    failedRequests++;
+    console.warn(`  ! fetch failed: ${url} (${err instanceof Error ? err.message : err})`);
+    return [];
+  }
 }
 
 interface VaultSeason {
@@ -82,10 +97,30 @@ async function syncBasketball() {
   console.log("Pulling Kentucky men's basketball season records (CBBD, 1985-2026)...");
   await syncBasketball();
 
+  // ── Partial-failure guard ─────────────────────────────────────────────────
+  // The new season list is built entirely in memory; refuse to replace a good
+  // file with a worse one (failed requests, or fewer seasons than we already
+  // have) unless --force is passed. A rate-limit burst or an expired key must
+  // never blank the Vault with a success exit code.
+  const existingCount = existsSync(OUT)
+    ? ((JSON.parse(readFileSync(OUT, "utf8")).vault_seasons ?? []) as unknown[]).length
+    : 0;
+  if (!FORCE && (failedRequests > 0 || seasons.length < existingCount)) {
+    console.error(
+      `\nRefusing to overwrite ${OUT}:\n` +
+        `  failed requests: ${failedRequests}\n` +
+        `  fetched seasons: ${seasons.length} (existing file has ${existingCount})\n` +
+        `Re-run when the APIs are healthy, or pass --force to overwrite anyway.`
+    );
+    process.exit(1);
+  }
+
   const payload = {
     _meta: { description: "The Vault — real UK season records. source: CFBD (football) / CBBD (basketball).", generatedAt: now },
     vault_seasons: seasons,
   };
+  // Keep a .bak of the previous good file so a forced/bad overwrite is recoverable.
+  if (existsSync(OUT)) writeFileSync(OUT + ".bak", readFileSync(OUT));
   writeFileSync(OUT, JSON.stringify(payload, null, 2) + "\n");
   mkdirSync(dirname(ASSET), { recursive: true });
   writeFileSync(ASSET, JSON.stringify(payload, null, 2) + "\n");

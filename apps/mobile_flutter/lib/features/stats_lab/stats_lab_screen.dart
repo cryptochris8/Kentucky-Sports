@@ -132,24 +132,21 @@ class _FourFactorsCards extends StatelessWidget {
 
   final TeamStat stat;
 
-  /// Demo percentiles for the Four Factors (seed has no per-factor percentile).
-  static const Map<String, int> _demoPercentiles = <String, int>{
-    'effectiveFgPct': 82,
-    'turnoverRate': 70,
-    'offReboundRate': 88,
-    'freeThrowRate': 61,
-  };
-
   @override
   Widget build(BuildContext context) {
-    final List<FourFactorValue> factors =
-        extractFourFactors(stat.stats, percentiles: _demoPercentiles);
+    final List<FourFactorValue> factors = extractFourFactors(stat.stats);
     return Column(
       children: <Widget>[
         for (final FourFactorValue f in factors)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: _FourFactorCard(value: f, stat: stat),
+            child: _FourFactorCard(
+              value: f,
+              stat: stat,
+              // The bar renders only when the doc itself carries a percentile
+              // for this factor — never a literal typed into the client.
+              percentile: stat.percentileFor(f.factor.key),
+            ),
           ),
       ],
     );
@@ -157,10 +154,17 @@ class _FourFactorsCards extends StatelessWidget {
 }
 
 class _FourFactorCard extends StatelessWidget {
-  const _FourFactorCard({required this.value, required this.stat});
+  const _FourFactorCard({
+    required this.value,
+    required this.stat,
+    this.percentile,
+  });
 
   final FourFactorValue value;
   final TeamStat stat;
+
+  /// Doc-provided 0..100 percentile; the bar is omitted when null.
+  final int? percentile;
 
   @override
   Widget build(BuildContext context) {
@@ -205,9 +209,11 @@ class _FourFactorCard extends StatelessWidget {
               ),
             ],
           ),
+          if (percentile != null) ...<Widget>[
+            const SizedBox(height: 12),
+            PercentileBar(percentile: percentile!),
+          ],
           const SizedBox(height: 12),
-          PercentileBar(percentile: value.percentile),
-          const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
@@ -241,31 +247,31 @@ class _AdvancedBasketball extends StatelessWidget {
 
   final TeamStat stat;
 
-  static const List<({String key, int pct})> _metrics =
-      <({String key, int pct})>[
-    (key: 'adjNetRating', pct: 92),
-    (key: 'adjOffRating', pct: 84),
-    (key: 'adjDefRating', pct: 79),
-    (key: 'tempo', pct: 58),
+  static const List<String> _metrics = <String>[
+    'adjNetRating',
+    'adjOffRating',
+    'adjDefRating',
+    'tempo',
   ];
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: <Widget>[
-        for (final ({String key, int pct}) m in _metrics)
-          if (stat.statValue(m.key) != null)
+        for (final String key in _metrics)
+          if (stat.statValue(key) != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: StatCard.fromMetric(
-                metricKey: m.key,
-                value: stat.statValue(m.key)!,
+                metricKey: key,
+                value: stat.statValue(key)!,
                 sport: 'mens_basketball',
                 source: stat.source,
                 updatedAt: stat.updatedAt,
                 confidence: stat.confidence,
-                percentile: m.pct,
-                rankText: _rank(m.key),
+                // Percentile/rank only when the doc carries them (hard rule 6).
+                percentile: stat.percentileFor(key),
+                rankText: _rank(key),
               ),
             ),
       ],
@@ -342,16 +348,6 @@ class _AdvancedFootball extends StatelessWidget {
 
   final TeamStat stat;
 
-  /// Demo percentiles keyed by metric (seed has SEC ranks, not percentiles).
-  static const Map<String, int> _demoPct = <String, int>{
-    'successRate': 68,
-    'explosivePlayRate': 74,
-    'ppaOffense': 71,
-    'ppaDefense': 66,
-    'turnoverMargin': 80,
-    'redZoneScorePct': 90,
-  };
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -367,7 +363,8 @@ class _AdvancedFootball extends StatelessWidget {
                 source: stat.source,
                 updatedAt: stat.updatedAt,
                 confidence: stat.confidence,
-                percentile: _demoPct[m.key],
+                // Percentile/rank only when the doc carries them (hard rule 6).
+                percentile: stat.percentileFor(m.key),
                 rankText: _rank(m.key),
               ),
             ),
@@ -425,12 +422,18 @@ class _CompareCard extends StatelessWidget {
             final double ky = c.kentucky[key]!;
             final double opp = c.opponent[key]!;
             final MetricLabel meta = labelFor(key, sport: sport);
-            final bool kyWins = meta.higherIsBetter ? ky >= opp : ky <= opp;
+            // Strict comparison — equal values are a tie, never a UK edge.
+            final ({bool kentuckyWins, bool tie}) edge = compareEdge(
+              kentucky: ky,
+              opponent: opp,
+              higherIsBetter: meta.higherIsBetter,
+            );
             return CompareRow(
               label: meta.shortLabel,
               kentuckyText: formatMetricValue(key, ky, sport: sport),
               opponentText: formatMetricValue(key, opp, sport: sport),
-              kentuckyWins: kyWins,
+              kentuckyWins: edge.kentuckyWins,
+              tie: edge.tie,
             );
           }),
           const SizedBox(height: 8),

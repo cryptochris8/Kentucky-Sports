@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "description": "Bluegrass Gameday development seed data. SCHEDULE/opponents are the REAL 2026 Kentucky football schedule and a REAL 2025 result (Eastern Michigan). Basketball 2026-27 is marked tentative (schedule not yet released). Stat VALUES are illustrative DEMO numbers (source: seed_demo, confidence: demo) until real data is wired via CFBD/CBBD. No official UK marks, no copyrighted article text, no real athlete likenesses for collectibles.",
-    "generatedFor": "Phase 0 / Phase 1 local demo",
+    "description": "Bluegrass Gameday development seed data. SCHEDULE/opponents are the REAL 2026 Kentucky football schedule plus a REAL 2025 result (Eastern Michigan); the 2026-27 basketball slate is tentative (schedule not yet released). team_stats and player_stats carry REAL synced values (source: cfbd/cbbd, confidence: official) refreshed via npm run sync-data; player ids like fb_qb_demo are legacy slot slugs that now hold real CFBD/CBBD players — do not rename them (player_stats and articles reference them). game_summaries, predictions, polls, recruits, high_school_games and users remain illustrative demo content (source: seed_demo or manual, confidence: demo). No official UK marks, no copyrighted article text, no real athlete likenesses for collectibles.",
+    "generatedFor": "Phase 1/2 local dev (post real-data sync)",
     "season_football": 2026,
     "season_basketball": 2026,
     "scheduleSource": "Real 2026 UK football schedule (public); 2025 result vs Eastern Michigan (public)."
@@ -634,8 +634,8 @@
   ],
 
   "high_school_games": [
-    { "id": "hs_game_demo_1", "schoolId": "frederick_douglass", "sport": "football", "season": 2026, "opponent": "Bryan Station", "startTime": "2026-08-21T19:00:00-04:00", "status": "scheduled", "schoolScore": null, "opponentScore": null, "source": "manual", "sourceUrl": "https://khsaa.org/" },
-    { "id": "hs_game_demo_2", "schoolId": "trinity_louisville", "sport": "football", "season": 2026, "opponent": "St. Xavier", "startTime": "2026-08-22T20:00:00-04:00", "status": "scheduled", "schoolScore": null, "opponentScore": null, "source": "manual", "sourceUrl": "https://khsaa.org/" }
+    { "id": "hs_game_demo_1", "schoolId": "frederick_douglass", "sport": "football", "season": 2026, "opponent": "Bryan Station", "startTime": "2026-08-21T19:00:00-04:00", "status": "scheduled", "schoolScore": null, "opponentScore": null, "source": "manual", "sourceUrl": "https://khsaa.org/", "updatedAt": "2026-06-15T12:00:00-04:00", "confidence": "demo" },
+    { "id": "hs_game_demo_2", "schoolId": "trinity_louisville", "sport": "football", "season": 2026, "opponent": "St. Xavier", "startTime": "2026-08-22T20:00:00-04:00", "status": "scheduled", "schoolScore": null, "opponentScore": null, "source": "manual", "sourceUrl": "https://khsaa.org/", "updatedAt": "2026-06-15T12:00:00-04:00", "confidence": "demo" }
   ],
 
   "recruits": [
@@ -699,7 +699,10 @@
       },
       "closingLine": "Forty-eight points, one statement, and a glimpse of what this Kentucky offense can truly become.",
       "sources": [
-        "seed_demo:team_stats/kentucky_football_2025_season",
+        "cfbd:team_stats/kentucky_football_2025_season",
+        "cfbd:player_stats/fb_qb_demo_2025",
+        "cfbd:player_stats/fb_rb_demo_2025",
+        "cfbd:player_stats/fb_wr_demo_2025",
         "seed_demo:games/fb_2025_eastern_michigan"
       ],
       "model": "claude-opus-4-8",
@@ -763,7 +766,10 @@
       },
       "closingLine": "New season, fresh start — the Cats begin writing a better story.",
       "sources": [
-        "seed_demo:team_stats/kentucky_football_2025_season",
+        "cfbd:team_stats/kentucky_football_2025_season",
+        "cfbd:player_stats/fb_qb_demo_2025",
+        "cfbd:player_stats/fb_rb_demo_2025",
+        "cfbd:player_stats/fb_wr_demo_2025",
         "seed_demo:game_summaries/fb_2026_youngstown",
         "seed_demo:games/fb_2026_youngstown"
       ],
@@ -784,7 +790,7 @@
       "openingNarrative": "There's no game on the Kentucky calendar quite like Louisville, and even with a placeholder date this matchup carries the weight of a state's pride. The Wildcats roll in with a 22-14 résumé, a top-tier adjusted offense (121.5), and a tempo (69.2) that wants to run the Cardinals off the floor. Rupp Arena will be electric, the half-court chess match will be tense, and the margins razor-thin. Kentucky owns the analytical edge in efficiency and shooting, but rivalry games rip up the script. Buckle in — this one feels like a 40-minute heavyweight scrap.",
       "tacticalBreakdown": {
         "title": "How Kentucky Wins the Chess Match",
-        "narrative": "It starts with pace. Kentucky's 70-plus possession appetite outruns Louisville's 67.5 tempo, and the Cats' adjusted offense (121.5) towers over the Cardinals' defense (98.1). The offensive glass is the swing factor — a 31.2% offensive rebound rate fuels second-chance buckets. Defensively, Kentucky must protect Rupp without fouling, leaning on a stout adjusted defensive mark. Win the math on extra possessions and tempo, and the edge holds.\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\""
+        "narrative": "It starts with pace. Kentucky's 70-plus possession appetite outruns Louisville's 67.5 tempo, and the Cats' adjusted offense (121.5) towers over the Cardinals' defense (98.1). The offensive glass is the swing factor — a 31.2% offensive rebound rate fuels second-chance buckets. Defensively, Kentucky must protect Rupp without fouling, leaning on a stout adjusted defensive mark. Win the math on extra possessions and tempo, and the edge holds."
       },
       "byTheNumbers": {
         "title": "The Tale of the Tape",
@@ -828,7 +834,10 @@
       },
       "closingLine": "Rivalry week at Rupp — the Cats have the edge, but pride writes its own ending.",
       "sources": [
-        "seed_demo:team_stats/kentucky_mens_basketball_2026_season",
+        "cbbd:team_stats/kentucky_mens_basketball_2026_season",
+        "cbbd:player_stats/mbb_g_demo1_2026",
+        "cbbd:player_stats/mbb_g_demo2_2026",
+        "cbbd:player_stats/mbb_f_demo_2026",
         "seed_demo:game_summaries/mbb_2026_louisville",
         "seed_demo:games/mbb_2026_louisville"
       ],

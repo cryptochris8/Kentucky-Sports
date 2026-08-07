@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { listGames, createGame, updateGame, toDisplayDate } from '../data/firestore';
+import { listGames, createGame, updateGame, toDisplayDate, timestampToLocalInput } from '../data/firestore';
+import { parseScore, deriveTeamIds, orientationChanged, decideScoreUpdates } from '../data/gameFormLogic';
+import { useAuth } from '../auth/AuthContext';
 import type { Game, GameStatus, Sport } from '../data/types';
 import {
   PageHeader, Button, Badge, Table, Thead, Th, Tbody, Tr, Td,
@@ -7,15 +9,16 @@ import {
 } from '../components/ui';
 
 const SPORTS: Sport[] = ['football', 'mens_basketball', 'womens_basketball', 'baseball', 'volleyball'];
-const STATUSES: GameStatus[] = ['scheduled', 'live', 'halftime', 'final', 'cancelled', 'postponed'];
+const STATUSES: GameStatus[] = ['scheduled', 'live', 'final', 'canceled', 'postponed'];
 
-function statusColor(s: GameStatus): 'blue' | 'green' | 'yellow' | 'red' | 'gray' {
+const TZ_HINT = `Local time — ${Intl.DateTimeFormat().resolvedOptions().timeZone}.`;
+
+function statusColor(s: GameStatus): 'blue' | 'green' | 'red' | 'gray' {
   switch (s) {
     case 'scheduled': return 'blue';
     case 'live': return 'green';
-    case 'halftime': return 'yellow';
     case 'final': return 'gray';
-    case 'cancelled': case 'postponed': return 'red';
+    case 'canceled': case 'postponed': return 'red';
     default: return 'gray';
   }
 }
@@ -29,6 +32,9 @@ type FormData = {
   featured: boolean;
   season: string;
   broadcast: string;
+  isHome: boolean;
+  homeScore: string;
+  awayScore: string;
 };
 
 const EMPTY_FORM: FormData = {
@@ -40,9 +46,13 @@ const EMPTY_FORM: FormData = {
   featured: false,
   season: new Date().getFullYear().toString(),
   broadcast: '',
+  isHome: true,
+  homeScore: '',
+  awayScore: '',
 };
 
 export function GamesPage() {
+  const { user } = useAuth();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -56,6 +66,7 @@ export function GamesPage() {
     setLoading(true);
     try {
       setGames(await listGames());
+      setError('');
     } catch (err: unknown) {
       setError((err as { message?: string }).message ?? 'Failed to load games.');
     } finally {
@@ -74,18 +85,18 @@ export function GamesPage() {
 
   const openEdit = (g: Game) => {
     setEditGame(g);
-    const st = typeof g.startTime === 'string'
-      ? g.startTime.slice(0, 16)
-      : g.startTime?.toDate().toISOString().slice(0, 16) ?? '';
     setForm({
       sport: g.sport,
       opponentName: g.opponentName,
-      startTime: st,
+      startTime: timestampToLocalInput(g.startTime),
       venue: g.venue,
       status: g.status,
       featured: g.featured,
       season: String(g.season),
       broadcast: g.broadcast ?? '',
+      isHome: g.isHome ?? true,
+      homeScore: g.homeScore != null ? String(g.homeScore) : '',
+      awayScore: g.awayScore != null ? String(g.awayScore) : '',
     });
     setSaveError('');
     setShowModal(true);
@@ -96,25 +107,54 @@ export function GamesPage() {
     setSaveError('');
     setSaving(true);
     try {
-      const payload = {
+      // Fields the form actually binds — shared by create and update.
+      const bound = {
         sport: form.sport,
         opponentName: form.opponentName,
-        startTime: form.startTime,
+        startTime: form.startTime, // converted to a Timestamp in the data layer
         venue: form.venue,
         status: form.status,
         featured: form.featured,
         season: parseInt(form.season, 10),
         broadcast: form.broadcast,
-        homeTeamId: `kentucky_${form.sport}`,
-        awayTeamId: `opp_${form.opponentName.toLowerCase().replace(/\s+/g, '_')}`,
-        homeScore: null,
-        awayScore: null,
-        source: 'admin',
+        isHome: form.isHome,
       };
       if (editGame) {
+        // Update: ONLY form-bound fields (never overwrite `source` provenance —
+        // cfbd / seed_demo stays intact). Scores are written when deliberately
+        // entered, and cleared only on explicit intent (a pre-filled field
+        // blanked, or status moving away from 'final') after a confirm.
+        const payload: Partial<Omit<Game, 'id'>> = {
+          ...bound,
+          lastEditedBy: user?.uid ?? 'unknown',
+        };
+        // Keep the three orientation signals (isHome, homeTeamId, awayTeamId)
+        // agreeing: recompute the team ids with the same derivation the create
+        // path uses whenever a field that feeds it changed.
+        if (orientationChanged(editGame, form)) {
+          Object.assign(payload, deriveTeamIds(form.sport, form.opponentName, form.isHome));
+        }
+        const { updates, clearReason } = decideScoreUpdates(editGame, form);
+        if (clearReason) {
+          const message =
+            clearReason === 'left_final'
+              ? 'Status is moving away from "final" — the stored final score will be cleared. Continue?'
+              : 'You cleared a previously saved score — it will be removed from the game. Continue?';
+          if (!window.confirm(message)) {
+            setSaveError('Save cancelled — the stored score was left unchanged.');
+            return;
+          }
+        }
+        Object.assign(payload, updates);
         await updateGame(editGame.id, payload);
       } else {
-        await createGame(payload as Omit<Game, 'id'>);
+        await createGame({
+          ...bound,
+          ...deriveTeamIds(form.sport, form.opponentName, form.isHome),
+          homeScore: form.status === 'final' ? parseScore(form.homeScore) : null,
+          awayScore: form.status === 'final' ? parseScore(form.awayScore) : null,
+          source: 'admin',
+        });
       }
       setShowModal(false);
       await load();
@@ -156,7 +196,9 @@ export function GamesPage() {
                 {games.map((g) => (
                   <Tr key={g.id}>
                     <Td><Badge color="blue">{g.sport.replace('_', ' ')}</Badge></Td>
-                    <Td className="font-medium">{g.opponentName}</Td>
+                    <Td className="font-medium">
+                      {g.isHome === false ? 'at' : 'vs'} {g.opponentName}
+                    </Td>
                     <Td className="text-gray-500 text-xs">{toDisplayDate(g.startTime)}</Td>
                     <Td className="text-gray-500">{g.venue}</Td>
                     <Td><Badge color={statusColor(g.status)}>{g.status}</Badge></Td>
@@ -177,7 +219,7 @@ export function GamesPage() {
 
       {showModal && (
         <Modal
-          title={editGame ? `Edit: vs ${editGame.opponentName}` : 'Create Game'}
+          title={editGame ? `Edit: ${editGame.isHome === false ? 'at' : 'vs'} ${editGame.opponentName}` : 'Create Game'}
           onClose={() => setShowModal(false)}
         >
           <form onSubmit={handleSave} className="space-y-4">
@@ -216,7 +258,7 @@ export function GamesPage() {
             </FormField>
 
             <div className="grid grid-cols-2 gap-4">
-              <FormField label="Start Time" htmlFor="startTime" required>
+              <FormField label="Start Time" htmlFor="startTime" required note={TZ_HINT}>
                 <Input
                   id="startTime"
                   type="datetime-local"
@@ -235,6 +277,31 @@ export function GamesPage() {
                 </Select>
               </FormField>
             </div>
+
+            {/* Final score — only entered deliberately, never defaulted */}
+            {form.status === 'final' && (
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Home Score" htmlFor="homeScore"
+                  note="Real final score only — leave blank if not yet known. Blanking a saved score clears it (with confirmation).">
+                  <Input
+                    id="homeScore"
+                    type="number"
+                    min={0}
+                    value={form.homeScore}
+                    onChange={(e) => setForm((f) => ({ ...f, homeScore: e.target.value }))}
+                  />
+                </FormField>
+                <FormField label="Away Score" htmlFor="awayScore">
+                  <Input
+                    id="awayScore"
+                    type="number"
+                    min={0}
+                    value={form.awayScore}
+                    onChange={(e) => setForm((f) => ({ ...f, awayScore: e.target.value }))}
+                  />
+                </FormField>
+              </div>
+            )}
 
             <FormField label="Venue" htmlFor="venue" required>
               <Input
@@ -255,15 +322,29 @@ export function GamesPage() {
               />
             </FormField>
 
-            <div className="flex items-center gap-2">
-              <input
-                id="featured"
-                type="checkbox"
-                checked={form.featured}
-                onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))}
-                className="rounded border-gray-300 text-[#1E5AA8]"
-              />
-              <label htmlFor="featured" className="text-sm text-gray-700">Featured game</label>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <input
+                  id="isHome"
+                  type="checkbox"
+                  checked={form.isHome}
+                  onChange={(e) => setForm((f) => ({ ...f, isHome: e.target.checked }))}
+                  className="rounded border-gray-300 text-[#1E5AA8]"
+                />
+                <label htmlFor="isHome" className="text-sm text-gray-700">
+                  Kentucky home game
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="featured"
+                  type="checkbox"
+                  checked={form.featured}
+                  onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))}
+                  className="rounded border-gray-300 text-[#1E5AA8]"
+                />
+                <label htmlFor="featured" className="text-sm text-gray-700">Featured game</label>
+              </div>
             </div>
 
             {saveError && (

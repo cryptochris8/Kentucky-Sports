@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/theme/colors.dart';
 import '../../app/theme/typography.dart';
 import '../../core/config.dart';
 import '../../core/models/models.dart';
@@ -98,8 +97,9 @@ class SettingsScreen extends ConsumerWidget {
                 children: <Widget>[
                   Row(
                     children: <Widget>[
-                      const Icon(Icons.dataset_rounded,
-                          size: 18, color: BgColors.deepBlue),
+                      Icon(Icons.dataset_rounded,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.primary),
                       const SizedBox(width: 8),
                       Text(
                         'Data sources',
@@ -120,10 +120,19 @@ class SettingsScreen extends ConsumerWidget {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: const <Widget>[
-                      Pill(label: 'CFBD', color: BgColors.deepBlue, dense: true),
-                      Pill(label: 'CBBD', color: BgColors.deepBlue, dense: true),
-                      Pill(label: 'KHSAA', color: BgColors.goldDark, dense: true),
+                    children: <Widget>[
+                      Pill(
+                          label: 'CFBD',
+                          color: Theme.of(context).colorScheme.primary,
+                          dense: true),
+                      Pill(
+                          label: 'CBBD',
+                          color: Theme.of(context).colorScheme.primary,
+                          dense: true),
+                      Pill(
+                          label: 'KHSAA',
+                          color: Theme.of(context).colorScheme.primary,
+                          dense: true),
                     ],
                   ),
                 ],
@@ -190,7 +199,7 @@ class _ToggleRow extends StatelessWidget {
     return SwitchListTile.adaptive(
       value: value,
       onChanged: onChanged,
-      activeColor: BgColors.deepBlue,
+      activeColor: Theme.of(context).colorScheme.primary,
       title: Text(title, style: Theme.of(context).textTheme.titleMedium),
       subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12),
@@ -205,23 +214,26 @@ class _DisclaimerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     final String disclaimer = config.maybeWhen(
       data: (AppConfigDoc c) => c.independentFanDisclaimer,
       orElse: () => '',
     );
+    // Theme tokens (not the literal light blueTint) so the legal disclaimer
+    // stays readable in dark mode.
     return BgCard(
-      color: BgColors.blueTint,
+      color: scheme.surfaceContainerHighest,
       borderColor: Colors.transparent,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
             children: <Widget>[
-              const Icon(Icons.gavel_rounded, size: 18, color: BgColors.deepBlue),
+              Icon(Icons.gavel_rounded, size: 18, color: scheme.primary),
               const SizedBox(width: 8),
               Text(
                 'Independent Fan Disclaimer',
-                style: BgTypography.eyebrow(BgColors.deepBlue),
+                style: BgTypography.eyebrow(scheme.primary),
               ),
             ],
           ),

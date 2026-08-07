@@ -1,9 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Local-only UI state held in memory (no backend, no persistence).
+/// Local-only UI state (no backend). Most of it is in-memory; the onboarding
+/// flag is additionally persisted via [SharedPreferences] so first-run setup
+/// is not forced on every launch.
 ///
 /// Picks made in the Prediction Center are stored here optimistically. They are
 /// intentionally local-only for Phase 1 — that's fine per the build spec.
+
+/// The [SharedPreferences] instance loaded in `main()` before `runApp`.
+///
+/// Overridden with a real instance at startup; the null default keeps tests
+/// and headless usage fully in-memory with zero platform channels.
+final sharedPreferencesProvider =
+    Provider<SharedPreferences?>((Ref ref) => null);
 
 /// Maps `predictionId -> selectedOptionId` for the current session.
 class LocalPicksNotifier extends StateNotifier<Map<String, String>> {
@@ -94,15 +104,41 @@ final notificationPrefsProvider =
     StateNotifierProvider<NotificationPrefsNotifier, NotificationPrefs>(
         (Ref ref) => NotificationPrefsNotifier());
 
-/// Whether onboarding has been completed this session (in-memory only).
+/// Whether onboarding has been completed. Persisted via [SharedPreferences]
+/// (when available) so the welcome flow only ever runs once per install;
+/// falls back to in-memory when no prefs instance was provided (tests).
 class OnboardingNotifier extends StateNotifier<bool> {
-  OnboardingNotifier() : super(false);
-  void complete() => state = true;
+  OnboardingNotifier(this._prefs) : super(_prefs?.getBool(_key) ?? false);
+
+  static const String _key = 'onboardingComplete';
+
+  final SharedPreferences? _prefs;
+
+  void complete() {
+    state = true;
+    _prefs?.setBool(_key, true);
+  }
 }
 
 final onboardingCompleteProvider =
     StateNotifierProvider<OnboardingNotifier, bool>(
-        (Ref ref) => OnboardingNotifier());
+        (Ref ref) => OnboardingNotifier(ref.watch(sharedPreferencesProvider)));
+
+/// Local follow/unfollow overrides for high schools (Preps), keyed by school
+/// id. Layered over the seed user's `favoriteHighSchools` so follow state
+/// survives rebuilds and stays reachable from the Riverpod graph. Persisting
+/// to the user document is a Phase 2 concern.
+class FollowedSchoolsNotifier extends StateNotifier<Map<String, bool>> {
+  FollowedSchoolsNotifier() : super(const <String, bool>{});
+
+  void setFollowing(String schoolId, bool following) {
+    state = <String, bool>{...state, schoolId: following};
+  }
+}
+
+final followedSchoolsProvider =
+    StateNotifierProvider<FollowedSchoolsNotifier, Map<String, bool>>(
+        (Ref ref) => FollowedSchoolsNotifier());
 
 /// Favorite sports chosen during onboarding (in-memory).
 class FavoriteSportsNotifier extends StateNotifier<Set<String>> {

@@ -229,14 +229,47 @@ final publishedArticlesProvider =
   return published;
 });
 
-/// The article (preview or recap) for a specific gameId, or null.
+/// The published article of a specific type ('preview' | 'recap' | ...) for a
+/// gameId, newest publishedAt first, or null. One gameId legitimately holds
+/// both a preview and a recap, so callers must say which they want.
+final articleForGameOfTypeProvider =
+    FutureProvider.family<Article?, ({String gameId, String type})>(
+        (Ref ref, ({String gameId, String type}) args) async {
+  final List<Article> all = await ref.watch(articlesProvider.future);
+  final List<Article> matches = all
+      .where((Article a) =>
+          a.gameId == args.gameId && a.isPublished && a.type == args.type)
+      .toList()
+    ..sort((Article a, Article b) => (b.publishedAt ?? DateTime(0))
+        .compareTo(a.publishedAt ?? DateTime(0)));
+  return matches.isEmpty ? null : matches.first;
+});
+
+/// The best published article for a gameId: the recap once the game is final
+/// (never a stale preview), otherwise the preview; falls back to the newest
+/// published article of any type for that game.
 final articleForGameProvider =
     FutureProvider.family<Article?, String>((Ref ref, String gameId) async {
-  final List<Article> all = await ref.watch(articlesProvider.future);
-  for (final Article a in all) {
-    if (a.gameId == gameId && a.isPublished) return a;
+  final List<Game> games = await ref.watch(gamesProvider.future);
+  Game? game;
+  for (final Game g in games) {
+    if (g.id == gameId) {
+      game = g;
+      break;
+    }
   }
-  return null;
+  final String preferred = (game?.isFinal ?? false) ? 'recap' : 'preview';
+  final Article? match = await ref
+      .watch(articleForGameOfTypeProvider((gameId: gameId, type: preferred))
+          .future);
+  if (match != null) return match;
+  final List<Article> all = await ref.watch(articlesProvider.future);
+  final List<Article> published = all
+      .where((Article a) => a.gameId == gameId && a.isPublished)
+      .toList()
+    ..sort((Article a, Article b) => (b.publishedAt ?? DateTime(0))
+        .compareTo(a.publishedAt ?? DateTime(0)));
+  return published.isEmpty ? null : published.first;
 });
 
 /// The featured preview article (for the featured upcoming game's pregame read).
@@ -244,15 +277,18 @@ final featuredPreviewArticleProvider =
     FutureProvider<Article?>((Ref ref) async {
   final Game? game = await ref.watch(featuredGameProvider.future);
   if (game == null) return null;
-  return ref.watch(articleForGameProvider(game.id).future);
+  return ref.watch(
+      articleForGameOfTypeProvider((gameId: game.id, type: 'preview')).future);
 });
 
-/// The recap article for the most recent final game.
+/// The recap article for the most recent final game (recap only — a preview
+/// for a game that already ended is never surfaced here).
 final lastFinalRecapArticleProvider =
     FutureProvider<Article?>((Ref ref) async {
   final Game? game = await ref.watch(lastFinalGameProvider.future);
   if (game == null) return null;
-  return ref.watch(articleForGameProvider(game.id).future);
+  return ref.watch(
+      articleForGameOfTypeProvider((gameId: game.id, type: 'recap')).future);
 });
 
 // --- High schools -----------------------------------------------------------

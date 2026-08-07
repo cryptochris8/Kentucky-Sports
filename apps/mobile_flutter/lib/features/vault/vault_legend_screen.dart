@@ -177,6 +177,7 @@ class _LegendReader extends StatelessWidget {
       confidence: legend.confidence,
       model: legend.model,
       generatedAt: legend.generatedAt,
+      updatedAt: legend.updatedAt,
     )));
 
     return children;

@@ -8,8 +8,10 @@ import {
   getDocs,
   getDoc,
   updateDoc,
+  deleteField,
   query,
   orderBy,
+  limit,
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -23,7 +25,7 @@ const legendsCol = () => collection(db, 'vault_legends').withConverter(vaultLege
 // ─── Vault Legends ───────────────────────────────────────────────────────────
 
 export async function listVaultLegends(): Promise<VaultLegend[]> {
-  const snap = await getDocs(query(legendsCol(), orderBy('generatedAt', 'desc')));
+  const snap = await getDocs(query(legendsCol(), orderBy('generatedAt', 'desc'), limit(100)));
   return snap.docs.map((d) => d.data());
 }
 
@@ -43,10 +45,22 @@ export async function saveVaultLegend(
   });
 }
 
-/** Transition status. Sets `publishedAt` (and `updatedAt`) when publishing. */
-export async function setLegendStatus(id: string, status: VaultLegendStatus): Promise<void> {
-  const patch: Record<string, unknown> = { status, updatedAt: serverTimestamp() };
-  if (status === 'published') patch.publishedAt = serverTimestamp();
+/**
+ * Transition status, optionally carrying the editor's current form content in
+ * the SAME write (so e.g. unpublishing never discards unsaved edits). Sets
+ * `publishedAt` when publishing and clears it when leaving `published`.
+ */
+export async function setLegendStatus(
+  id: string,
+  status: VaultLegendStatus,
+  contentPatch: Partial<Omit<VaultLegend, 'id'>> = {},
+): Promise<void> {
+  const patch: Record<string, unknown> = {
+    ...contentPatch,
+    status,
+    updatedAt: serverTimestamp(),
+  };
+  patch.publishedAt = status === 'published' ? serverTimestamp() : deleteField();
   await updateDoc(doc(db, 'vault_legends', id), patch);
 }
 

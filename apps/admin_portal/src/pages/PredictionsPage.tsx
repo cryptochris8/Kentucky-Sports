@@ -6,6 +6,7 @@ import {
   getPredictionEntryCount,
   toDisplayDate,
 } from '../data/firestore';
+import { useAuth } from '../auth/AuthContext';
 import type { Prediction, PredictionType, Sport } from '../data/types';
 import {
   PageHeader, Button, Badge, Table, Thead, Th, Tbody, Tr, Td,
@@ -13,7 +14,14 @@ import {
 } from '../components/ui';
 
 const SPORTS: Sport[] = ['football', 'mens_basketball', 'womens_basketball', 'baseball', 'volleyball'];
-const TYPES: PredictionType[] = ['winner', 'margin_bucket', 'threes_range', 'total_points', 'custom'];
+// The canonical PredictionType set — anything else can never be scored by the
+// Functions scoring path (functions/src/predictions/scoringLogic.ts).
+const TYPES: PredictionType[] = [
+  'winner', 'margin_bucket', 'exact_score', 'threes_range',
+  'leading_scorer', 'stat_over_under', 'upset_pick',
+];
+
+const TZ_HINT = `Times are interpreted in your local timezone (${Intl.DateTimeFormat().resolvedOptions().timeZone}).`;
 
 function statusColor(s: Prediction['status']): 'green' | 'gray' | 'blue' | 'red' {
   switch (s) {
@@ -53,6 +61,7 @@ const EMPTY_FORM: PredForm = {
 };
 
 export function PredictionsPage() {
+  const { user } = useAuth();
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [entryCounts, setEntryCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -67,6 +76,7 @@ export function PredictionsPage() {
     try {
       const preds = await listPredictions();
       setPredictions(preds);
+      setError('');
       // Fetch entry counts in parallel (best-effort)
       const counts: Record<string, number> = {};
       await Promise.allSettled(
@@ -105,11 +115,12 @@ export function PredictionsPage() {
         type: form.type,
         question: form.question,
         points: parseInt(form.points, 10),
+        // Converted to Timestamps in the data layer (local-timezone inputs).
         opensAt: form.opensAt,
         closesAt: form.closesAt,
         options: form.options.filter((o) => o.id && o.label),
         status: 'open',
-        createdBy: 'admin',
+        createdBy: user?.uid ?? 'unknown',
       });
       setShowModal(false);
       await load();
@@ -278,6 +289,7 @@ export function PredictionsPage() {
                 />
               </FormField>
             </div>
+            <p className="text-xs text-gray-400 -mt-2">{TZ_HINT}</p>
 
             {/* Options */}
             <div>

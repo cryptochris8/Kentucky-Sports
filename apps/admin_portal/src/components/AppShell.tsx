@@ -1,21 +1,26 @@
 import { useState } from 'react';
-import { NavLink, useNavigate, Outlet } from 'react-router-dom';
+import { NavLink, useNavigate, Outlet } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
+import { ADMIN_ROLES, EDITOR_ROLES, MOD_ROLES } from '../auth/roles';
+import type { UserRole } from '../data/types';
 
-const NAV_ITEMS = [
-  { to: '/', label: 'Dashboard', icon: '⬛' },
-  { to: '/games', label: 'Games', icon: '🏟' },
-  { to: '/predictions', label: 'Predictions', icon: '🎯' },
-  { to: '/news', label: 'News CMS', icon: '📰' },
-  { to: '/vault', label: 'Vault', icon: '📜' },
-  { to: '/moderation', label: 'Moderation', icon: '🛡' },
-  { to: '/sync', label: 'Sync Health', icon: '🔄' },
+// `roles` mirrors the RoleGuard arrays in App.tsx (via auth/roles.ts) — a
+// moderator only sees links the router will actually let them open.
+const NAV_ITEMS: Array<{ to: string; label: string; icon: string; roles: UserRole[] }> = [
+  { to: '/', label: 'Dashboard', icon: '⬛', roles: MOD_ROLES },
+  { to: '/games', label: 'Games', icon: '🏟', roles: EDITOR_ROLES },
+  { to: '/predictions', label: 'Predictions', icon: '🎯', roles: EDITOR_ROLES },
+  { to: '/news', label: 'News CMS', icon: '📰', roles: EDITOR_ROLES },
+  { to: '/vault', label: 'Vault', icon: '📜', roles: EDITOR_ROLES },
+  { to: '/moderation', label: 'Moderation', icon: '🛡', roles: MOD_ROLES },
+  { to: '/sync', label: 'Sync Health', icon: '🔄', roles: ADMIN_ROLES },
 ];
 
 export function AppShell() {
   const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const visibleNavItems = NAV_ITEMS.filter((item) => role && item.roles.includes(role));
 
   const handleSignOut = async () => {
     await signOut();
@@ -43,7 +48,7 @@ export function AppShell() {
 
         {/* Nav */}
         <nav className="flex-1 py-4 overflow-y-auto">
-          {NAV_ITEMS.map((item) => (
+          {visibleNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

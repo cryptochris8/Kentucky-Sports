@@ -1,17 +1,17 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "ES2021",
+    "target": "ES2022",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "lib",
-    "rootDir": "src",
+    "rootDir": "..",
     "resolveJsonModule": true,
-    "lib": ["ES2021"],
+    "lib": ["ES2022"],
     "baseUrl": ".",
     "paths": {
-      "@bluegrass/shared-models": ["../packages/shared_models/dist/index.d.ts"]
+      "@bluegrass/shared-models": ["../packages/shared_models/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts"],

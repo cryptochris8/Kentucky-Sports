@@ -4,6 +4,7 @@
  * Usage:
  *   tsx generate_articles.ts --game=fb_2026_youngstown
  *   tsx generate_articles.ts           # processes all featured games
+ *   tsx generate_articles.ts --publish # mark output published (default is draft)
  *
  * Key-gated:
  *   - If ANTHROPIC_API_KEY is NOT set → deterministic seed_template article (offline-safe).
@@ -13,17 +14,25 @@
  * Output:
  *   - Writes seed_data/generated/<gameId>.json always.
  *   - If FIRESTORE_EMULATOR_HOST is set → upserts to Firestore `articles` collection.
+ *   - Articles are stamped status:"draft" unless --publish is passed — same
+ *     human-in-the-loop model as the Vault legends pipeline.
+ *   - The Firestore upsert never demotes an existing published article to draft
+ *     or replaces a claude-* article with a seed_template regeneration unless
+ *     --force is passed (mirrors seed_firestore.ts's vault-legend guard).
  *
  * Security rules:
  *   - No secrets in code. Keys from env only.
- *   - No betting language (odds/wager/parlay/spread).
+ *   - No betting language. Every article is scanned before it is written and the
+ *     run hard-fails on a hit (mirrors apps/admin_portal/src/data/vaultGuards.ts).
  *   - No University of Kentucky trademarks.
- *   - Stats come ONLY from stored data — never invented.
+ *   - Stats come ONLY from stored data — never invented. Provenance (sources +
+ *     confidence) is derived from the underlying docs, weakest confidence wins.
  */
 
 import { readFileSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import type { GameStatus } from "../packages/shared_models/src/index";
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
 
@@ -59,12 +68,13 @@ const SYSTEM_PROMPT = `You are an elite independent college-sports journalist co
 HARD RULES — these override everything else:
 1. Use ONLY the numbers provided in the user message. Never invent, estimate, or extrapolate statistics.
 2. You are an independent fan voice — NOT an official University of Kentucky publication.
-3. No betting language. Do not use: odds, wager, parlay, spread, over/under, line, ATS, pick against, moneyline.
+3. No betting language. Do not use: bet, betting, odds, wager, parlay, spread, point spread, over/under, line, ATS, pick against, moneyline, sportsbook, bookie.
 4. No official University of Kentucky trademarks (no ®/™ marks, no licensed marks).
 5. Write for a passionate fan audience — vivid, direct, analytically grounded prose.
-6. Confidence values (theVerdict.confidence) must be a number between 0 and 100.
+6. theVerdict.confidence is optional: include it ONLY when the provided data contains a fan confidence or win probability to ground it (then a number between 0 and 100). If no projection is provided, omit the field entirely and never mention a confidence percentage in prose.
 7. playerSpotlights: name only players whose stats appear in the data — no invented rosters.
-8. Keep openingNarrative under 120 words. tacticalBreakdown.narrative under 100 words. theVerdict.narrative under 80 words. closingLine under 25 words.`;
+8. Never assert that Kentucky is favored, has the edge, or will win unless the provided win probability or stats actually support it. If no projection is provided, stay neutral.
+9. Keep openingNarrative under 120 words. tacticalBreakdown.narrative under 100 words. theVerdict.narrative under 80 words. closingLine under 25 words.`;
 
 // ── Zod schema for editorial output ──────────────────────────────────────────
 
@@ -98,17 +108,21 @@ const EditorialSchema = z.object({
   theVerdict: z.object({
     title: z.string(),
     prediction: z.string(),
-    confidence: z.number(),
+    // Optional on purpose: a confidence with no fanConfidence / winProbability
+    // behind it is a fabricated stat (hard rule 6). Absent means "no projection".
+    confidence: z.number().optional(),
     narrative: z.string(),
   }),
   closingLine: z.string(),
 });
 
-type Editorial = z.infer<typeof EditorialSchema>;
+export type Editorial = z.infer<typeof EditorialSchema>;
 
 // ── Seed data types ───────────────────────────────────────────────────────────
+// Game status values come from the canonical GameStatus union in
+// packages/shared_models (single source of truth — do not redeclare inline).
 
-interface SeedGame {
+export interface SeedGame {
   id: string;
   gameId?: string;
   season: number;
@@ -118,17 +132,18 @@ interface SeedGame {
   opponentName: string;
   opponentShort?: string;
   startTime: string;
-  venue?: string;
-  status: "scheduled" | "final" | "live" | "postponed" | "canceled";
+  venue?: string | null;
+  status: GameStatus;
   homeScore?: number | null;
   awayScore?: number | null;
   broadcast?: string;
   featured?: boolean;
   isHome?: boolean;
   result?: string;
+  source?: string;
 }
 
-interface GameSummary {
+export interface GameSummary {
   id: string;
   gameId?: string;
   matchupVerdict?: string;
@@ -140,18 +155,23 @@ interface GameSummary {
   playerToWatch?: { playerId: string; reason: string };
   concernMeter?: { level: string; note: string };
   statStory?: string;
+  source?: string;
+  confidence?: string;
 }
 
-interface TeamStat {
+export interface TeamStat {
   id: string;
   teamId: string;
   season: number;
   sport: string;
   scope: string;
   stats: Record<string, number | string | null>;
+  source?: string;
+  confidence?: string;
+  updatedAt?: string;
 }
 
-interface PlayerProfile {
+export interface PlayerProfile {
   id: string;
   name: string;
   teamId: string;
@@ -161,7 +181,7 @@ interface PlayerProfile {
   jersey?: number;
 }
 
-interface PlayerStat {
+export interface PlayerStat {
   id: string;
   playerId: string;
   teamId: string;
@@ -169,9 +189,11 @@ interface PlayerStat {
   sport: string;
   scope: string;
   stats: Record<string, number | string | null>;
+  source?: string;
+  confidence?: string;
 }
 
-interface SeedData {
+export interface SeedData {
   games: SeedGame[];
   game_summaries: GameSummary[];
   team_stats: TeamStat[];
@@ -182,19 +204,23 @@ interface SeedData {
 
 // ── Game context (what we send to the LLM) ───────────────────────────────────
 
-interface GameContext {
+export interface GameContext {
   game: SeedGame;
   summary?: GameSummary;
   teamStats?: TeamStat;
   relevantPlayerStats: Array<{
     profile: PlayerProfile;
     stats: Record<string, number | string | null>;
+    /** id + provenance of the player_stats doc the stats came from */
+    statId: string;
+    source?: string;
+    confidence?: string;
   }>;
 }
 
 // ── Article output shape ──────────────────────────────────────────────────────
 
-interface ArticleDoc {
+export interface ArticleDoc {
   id: string;
   type: "preview" | "recap" | "stat_story";
   gameId: string;
@@ -222,9 +248,51 @@ interface ArticleDoc {
   sources: string[];
   model: string;
   generatedAt: string;
-  publishedAt: string;
+  /** Only present when the article was generated with --publish. */
+  publishedAt?: string;
   confidence: string;
   featured?: boolean;
+}
+
+// ── Betting-language guard ────────────────────────────────────────────────────
+// Free-to-play hard rule: no betting language may reach any article surface.
+// Mirrors the admin portal's Vault guard (apps/admin_portal/src/data/vaultGuards.ts),
+// including the spaced/hyphenated variants ("money line", "point-spread",
+// "over / under") plus bare "odds", "vig", whole-word "ats" and "pick against".
+// Deliberately whole-word so "Wildcats" (ats), "better" (bet) and football usage
+// of a bare "spread" (spread offense) don't false-positive.
+
+const BETTING_LANGUAGE_RE =
+  /\b(?:bet|bets|betting|wager\w*|parlay\w*|sportsbook\w*|bookie\w*|money[\s-]?lines?|point[\s-]+spreads?|over\s*[/–-]\s*under|odds|vig|ats|pick(?:s|ed|ing)?\s+against)\b/i;
+
+/** Returns the first betting term found anywhere in the article's text, or null. */
+export function findBettingLanguage(article: unknown): string | null {
+  const m = JSON.stringify(article).match(BETTING_LANGUAGE_RE);
+  return m ? m[0].toLowerCase() : null;
+}
+
+// ── Published-work protection ─────────────────────────────────────────────────
+// Mirrors the vault-legend guard in seed_firestore.ts: a routine regeneration
+// must never demote a published article to draft, and a template must never
+// replace a Claude-written article. Shared by the Firestore upsert below and by
+// apply_generated_articles.ts; --force overrides in both.
+
+/** Returns a human-readable reason the existing article must not be replaced, or null. */
+export function protectedArticleReplacement(
+  existing: { status?: unknown; model?: unknown },
+  incoming: { status?: unknown; model?: unknown }
+): string | null {
+  if (existing.status === "published" && incoming.status !== "published") {
+    return `status "published" would be demoted to "${String(incoming.status)}"`;
+  }
+  if (
+    typeof existing.model === "string" &&
+    existing.model.startsWith("claude-") &&
+    incoming.model === "seed_template"
+  ) {
+    return `model "${existing.model}" would be replaced by a seed_template regeneration`;
+  }
+  return null;
 }
 
 // ── Context assembly ──────────────────────────────────────────────────────────
@@ -245,6 +313,22 @@ function assembleSeason(game: SeedGame): number {
   // Prefer game.season; fallback parse from startTime year
   if (game.season) return game.season;
   return new Date(game.startTime).getFullYear();
+}
+
+/**
+ * True when Kentucky is the home team. Derived from homeTeamId/awayTeamId (the
+ * authoritative fields), falling back to the optional isHome flag. Throws
+ * rather than guessing when neither is present — a wrong home/away call
+ * produces a wrong W/L headline (hard rule 6).
+ */
+export function kentuckyIsHome(game: SeedGame): boolean {
+  const teamId = resolveTeamId(game.sport);
+  if (game.homeTeamId === teamId) return true;
+  if (game.awayTeamId === teamId) return false;
+  if (typeof game.isHome === "boolean") return game.isHome;
+  throw new Error(
+    `Cannot determine home/away for ${game.id}: no homeTeamId/awayTeamId/isHome in the game doc.`
+  );
 }
 
 export function assembleGameContext(gameId: string, seed: SeedData): GameContext {
@@ -283,7 +367,7 @@ export function assembleGameContext(gameId: string, seed: SeedData): GameContext
   // Gather player stats for the same team/sport. Try exact season first,
   // then fall back to the most recent season for each player.
   const relevantPlayerStats = teamProfiles
-    .map((profile) => {
+    .map((profile): GameContext["relevantPlayerStats"][number] | null => {
       let statDoc = seed.player_stats.find(
         (ps) =>
           ps.playerId === profile.id &&
@@ -303,45 +387,74 @@ export function assembleGameContext(gameId: string, seed: SeedData): GameContext
         statDoc = fallback[0];
       }
       if (!statDoc) return null;
-      return { profile, stats: statDoc.stats };
+      return {
+        profile,
+        stats: statDoc.stats,
+        statId: statDoc.id,
+        source: statDoc.source,
+        confidence: statDoc.confidence,
+      };
     })
-    .filter((x): x is { profile: PlayerProfile; stats: Record<string, number | string | null> } =>
-      x !== null
-    );
+    .filter((x): x is GameContext["relevantPlayerStats"][number] => x !== null);
 
   return { game, summary, teamStats, relevantPlayerStats };
 }
 
+// ── Game-status eligibility ──────────────────────────────────────────────────
+// Articles exist only for games that are being (or were) played. A postponed
+// or canceled game has no honest preview and no recap — generating one would
+// fabricate a result (hard rule 6). Refuse loudly; a neutral notice card is a
+// deliberate admin/CMS decision, never something this pipeline invents.
+
+export function assertArticleEligible(game: SeedGame): void {
+  if (game.status === "postponed" || game.status === "canceled") {
+    throw new Error(
+      `Refusing to generate an article for ${game.id}: status is "${game.status}" — no preview/recap exists for a game that is not being played.`
+    );
+  }
+}
+
 // ── Template fallback (no API key) ───────────────────────────────────────────
+// Every claim below must follow from the data in ctx or stay neutral — the
+// template never asserts a Kentucky edge the stored numbers don't support.
 
 export function buildTemplateArticle(ctx: GameContext): Editorial {
   const { game, summary, teamStats } = ctx;
+  assertArticleEligible(game);
+  // After the guard, the only non-preview status left is "final".
   const isPreview = game.status === "scheduled" || game.status === "live";
   const opponent = game.opponentName;
-  const venue = game.venue ?? "home";
+  const home = kentuckyIsHome(game);
+  const site = game.venue ? `at ${game.venue}` : home ? "at home" : "on the road";
   const sport = game.sport;
+  const winProb = summary?.winProbability?.kentucky;
 
   // ---------- headline / subheadline ----------
   let headline: string;
   let subheadline: string;
 
   if (isPreview) {
-    headline = `${sport === "football" ? "Cats Host" : "Kentucky Welcomes"} ${opponent} — By the Numbers`;
+    headline = home
+      ? `${sport === "football" ? "Cats Host" : "Kentucky Welcomes"} ${opponent} — By the Numbers`
+      : `Kentucky Visits ${opponent} — By the Numbers`;
     subheadline = summary?.statStory
       ? summary.statStory.split(".")[0] + "."
-      : `Matchup preview for the upcoming game at ${venue}.`;
+      : `Matchup preview for the upcoming game ${site}.`;
   } else {
-    const homeScore = game.homeScore ?? 0;
-    const awayScore = game.awayScore ?? 0;
-    const wonLost =
-      game.isHome
-        ? homeScore > awayScore
-          ? "Win"
-          : "Loss"
-        : awayScore > homeScore
-        ? "Win"
-        : "Loss";
-    headline = `Kentucky ${wonLost}: Wildcats vs. ${opponent} — Final Recap`;
+    // Derive the result from stored data — game.result is the seed's explicit
+    // call; the Kentucky-vs-opponent score comparison is the fallback. When
+    // neither settles it, make no W/L claim at all.
+    const kyScore = home ? game.homeScore : game.awayScore;
+    const oppScore = home ? game.awayScore : game.homeScore;
+    let wonLost: string | null = null;
+    if (game.result === "win" || game.result === "loss") {
+      wonLost = game.result === "win" ? "Win" : "Loss";
+    } else if (kyScore != null && oppScore != null && kyScore !== oppScore) {
+      wonLost = kyScore > oppScore ? "Win" : "Loss";
+    }
+    headline = wonLost
+      ? `Kentucky ${wonLost}: Wildcats vs. ${opponent} — Final Recap`
+      : `Kentucky vs. ${opponent} — Final Recap`;
     subheadline = `A look at the numbers behind the final result.`;
   }
 
@@ -350,7 +463,18 @@ export function buildTemplateArticle(ctx: GameContext): Editorial {
   if (summary?.statStory) {
     openingNarrative = summary.statStory;
   } else if (isPreview) {
-    openingNarrative = `Kentucky returns to ${venue} to take on ${opponent}. The numbers favor the Wildcats — the edge lies in execution.`;
+    const setting = home
+      ? `returns ${game.venue ? `to ${game.venue}` : "home"}`
+      : `hits the road`;
+    if (winProb == null) {
+      openingNarrative = `Kentucky ${setting} to take on ${opponent}. No projection is available for this matchup — the numbers will have to tell the story on game day.`;
+    } else if (winProb >= 0.6) {
+      openingNarrative = `Kentucky ${setting} to take on ${opponent}. The numbers favor the Wildcats — the edge lies in execution.`;
+    } else if (winProb >= 0.5) {
+      openingNarrative = `Kentucky ${setting} to take on ${opponent}. The numbers make this one close, with a narrow Kentucky lean on paper.`;
+    } else {
+      openingNarrative = `Kentucky ${setting} to take on ${opponent}. The numbers lean ${opponent} — the Wildcats enter as the underdog on paper.`;
+    }
   } else {
     const finalScore =
       game.homeScore != null && game.awayScore != null
@@ -428,34 +552,51 @@ export function buildTemplateArticle(ctx: GameContext): Editorial {
   }
 
   // ---------- theVerdict ----------
-  const confidence = summary?.fanConfidence ?? 65;
-  const winProb = summary?.winProbability?.kentucky;
+  // The lean must follow the stored win probability; with no projection, say so
+  // rather than asserting a Kentucky lean. Confidence is only ever the stored
+  // fanConfidence — when there is none, the field is omitted, never invented.
+  const confidence = summary?.fanConfidence;
 
   let prediction: string;
   if (isPreview) {
-    if (winProb && winProb >= 0.6) {
+    if (winProb == null) {
+      prediction = `No projection available for this matchup`;
+    } else if (winProb >= 0.6) {
       prediction = `Kentucky by double digits`;
-    } else if (winProb && winProb >= 0.5) {
+    } else if (winProb >= 0.5) {
       prediction = `Kentucky in a close game`;
     } else {
-      prediction = `A competitive contest — leaning Kentucky`;
+      prediction = `A competitive contest — leaning ${opponent}`;
     }
   } else {
-    const homeScore = game.homeScore ?? 0;
-    const awayScore = game.awayScore ?? 0;
-    const margin = game.isHome ? homeScore - awayScore : awayScore - homeScore;
-    prediction = margin > 0 ? `Kentucky ${margin > 0 ? "wins" : "loses"} by ${Math.abs(margin)}` : `Final: ${homeScore}–${awayScore}`;
+    // Recap: only real stored scores may appear — a "final" doc whose scores
+    // haven't landed yet must not fabricate a 0–0 (hard rule 6).
+    const kyScore = home ? game.homeScore : game.awayScore;
+    const oppScore = home ? game.awayScore : game.homeScore;
+    if (kyScore != null && oppScore != null) {
+      const margin = kyScore - oppScore;
+      prediction =
+        margin !== 0
+          ? `Kentucky ${margin > 0 ? "wins" : "loses"} by ${Math.abs(margin)}`
+          : `Final: ${game.homeScore}–${game.awayScore}`;
+    } else {
+      prediction = `Final score not yet recorded`;
+    }
   }
 
   const verdictNarrative =
     summary?.keysToGame?.[2] ??
     (isPreview
-      ? "Execute the gameplan, protect the football, and this one goes Kentucky's way."
-      : "The final score reflects Kentucky's execution when it mattered most.");
+      ? "Execution and ball security will decide it — the matchup data above tells the story."
+      : "The final score reflects how each side executed when it mattered most.");
 
   // ---------- closingLine ----------
   const closingLine = isPreview
-    ? `Game time at ${venue} — the numbers like the home team.`
+    ? winProb == null
+      ? `Game time ${site} — the numbers will tell the story.`
+      : winProb >= 0.5
+        ? `Game time ${site} — the numbers lean Kentucky.`
+        : `Game time ${site} — the numbers lean ${opponent}.`
     : `Final result locked in. The stats hold up under review.`;
 
   return {
@@ -474,7 +615,7 @@ export function buildTemplateArticle(ctx: GameContext): Editorial {
     theVerdict: {
       title: "The Verdict",
       prediction,
-      confidence,
+      ...(confidence != null ? { confidence } : {}),
       narrative: verdictNarrative,
     },
     closingLine,
@@ -482,22 +623,84 @@ export function buildTemplateArticle(ctx: GameContext): Editorial {
 }
 
 // ── Provenance stamping ───────────────────────────────────────────────────────
+// Sources and confidence are derived from the docs the article was actually
+// built from — never hardcoded. Weakest input confidence wins (hard rule 6:
+// an article is only as trustworthy as its least-verified source).
 
-function buildArticleDoc(
+const CONFIDENCE_RANK: Record<string, number> = {
+  demo: 0,
+  fan_rumor: 0,
+  researched: 1,
+  official: 2,
+};
+
+function docProvenance(source?: string, confidence?: string): { source: string; confidence: string } {
+  const src = source ?? "seed_demo";
+  const conf =
+    confidence ?? (src === "cfbd" || src === "cbbd" || src === "khsaa" ? "official" : "demo");
+  return { source: src, confidence: conf };
+}
+
+export function buildArticleDoc(
   gameId: string,
   ctx: GameContext,
   editorial: Editorial,
-  model: string
+  model: string,
+  publish = false
 ): ArticleDoc {
   const { game, summary, teamStats } = ctx;
 
+  // Both paths (template AND LLM editorial) sink through here — enforce the
+  // status eligibility again so a postponed/canceled game can never be typed
+  // as a "recap".
+  assertArticleEligible(game);
   const articleType: "preview" | "recap" | "stat_story" =
     game.status === "scheduled" || game.status === "live" ? "preview" : "recap";
 
-  const sources: string[] = [];
-  if (teamStats) sources.push(`seed_demo:team_stats/${teamStats.id}`);
-  if (summary) sources.push(`seed_demo:game_summaries/${gameId}`);
-  sources.push(`seed_demo:games/${gameId}`);
+  // ── Spotlights: bind playerIds by identity (name), never by array index ──
+  const playerSpotlights: ArticleDoc["playerSpotlights"] = [];
+  const spotlightedStats: GameContext["relevantPlayerStats"] = [];
+  for (const sp of editorial.playerSpotlights) {
+    const match = ctx.relevantPlayerStats.find((p) => p.profile.name === sp.name);
+    if (match) {
+      spotlightedStats.push(match);
+      playerSpotlights.push({
+        playerId: match.profile.id,
+        name: sp.name,
+        position: sp.position,
+        narrative: sp.narrative,
+        statline: sp.statline,
+      });
+    } else if (sp.position === "UNIT") {
+      // Template fallback block (e.g. "Kentucky Offense") — no player identity to bind.
+      playerSpotlights.push({
+        name: sp.name,
+        position: sp.position,
+        narrative: sp.narrative,
+        statline: sp.statline,
+      });
+    } else {
+      // System-prompt rule 7: only players present in the data may be named.
+      console.warn(`  ! Dropping spotlight "${sp.name}" — no matching player in the provided data.`);
+    }
+  }
+
+  const inputs: Array<{ source: string; confidence: string; ref: string }> = [];
+  if (teamStats)
+    inputs.push({ ...docProvenance(teamStats.source, teamStats.confidence), ref: `team_stats/${teamStats.id}` });
+  if (summary)
+    inputs.push({ ...docProvenance(summary.source, summary.confidence), ref: `game_summaries/${gameId}` });
+  inputs.push({ ...docProvenance(game.source), ref: `games/${gameId}` });
+  for (const ps of spotlightedStats)
+    inputs.push({ ...docProvenance(ps.source, ps.confidence), ref: `player_stats/${ps.statId}` });
+
+  const sources = inputs.map((i) => `${i.source}:${i.ref}`);
+  let confidence = "official";
+  for (const i of inputs) {
+    if ((CONFIDENCE_RANK[i.confidence] ?? 0) < (CONFIDENCE_RANK[confidence] ?? 0)) {
+      confidence = i.confidence;
+    }
+  }
 
   const now = new Date().toISOString();
 
@@ -506,29 +709,21 @@ function buildArticleDoc(
     type: articleType,
     gameId,
     sport: game.sport,
-    status: "published",
+    // Draft by default — publishing requires the explicit --publish flag.
+    status: publish ? "published" : "draft",
     headline: editorial.headline,
     subheadline: editorial.subheadline,
     openingNarrative: editorial.openingNarrative,
     tacticalBreakdown: editorial.tacticalBreakdown,
     byTheNumbers: editorial.byTheNumbers,
-    playerSpotlights: editorial.playerSpotlights.map((sp, i) => {
-      const profile = ctx.relevantPlayerStats[i]?.profile;
-      return {
-        playerId: profile?.id,
-        name: sp.name,
-        position: sp.position,
-        narrative: sp.narrative,
-        statline: sp.statline,
-      };
-    }),
+    playerSpotlights,
     theVerdict: editorial.theVerdict,
     closingLine: editorial.closingLine,
     sources,
     model,
     generatedAt: now,
-    publishedAt: now,
-    confidence: "demo",
+    ...(publish ? { publishedAt: now } : {}),
+    confidence,
     featured: game.featured,
   };
 }
@@ -547,7 +742,7 @@ async function generateWithLLM(ctx: GameContext): Promise<Editorial> {
     model: MODEL,
     max_tokens: 4096,
     thinking: { type: "adaptive" },
-    output_config: { effort: "medium", format: zodOutputFormat(EditorialSchema, "editorial") },
+    output_config: { effort: "medium", format: zodOutputFormat(EditorialSchema) },
     system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
     messages: [{ role: "user", content: JSON.stringify(ctx) }],
   });
@@ -564,7 +759,7 @@ async function generateWithLLM(ctx: GameContext): Promise<Editorial> {
 
 // ── Firestore upsert (emulator-only) ─────────────────────────────────────────
 
-async function upsertToFirestore(article: ArticleDoc): Promise<void> {
+async function upsertToFirestore(article: ArticleDoc, force: boolean): Promise<void> {
   const { initializeApp, getApps } = await import("firebase-admin/app");
   const { getFirestore, Timestamp } = await import("firebase-admin/firestore");
 
@@ -595,20 +790,42 @@ async function upsertToFirestore(article: ArticleDoc): Promise<void> {
   const docData = convertTimestamps(data) as Record<string, unknown>;
   docData["updatedAt"] = Timestamp.now();
 
-  await db
-    .collection("articles")
-    .doc(id)
-    .set(docData, { merge: true });
+  const ref = db.collection("articles").doc(id);
+
+  // Published-work guard: a draft re-run must not demote a published article,
+  // and a template must not replace a Claude-written one. --force overrides.
+  if (!force) {
+    const existing = await ref.get();
+    if (existing.exists) {
+      const reason = protectedArticleReplacement(
+        existing.data() as { status?: unknown; model?: unknown },
+        article
+      );
+      if (reason) {
+        console.log(`  - Firestore: articles/${id} skipped (${reason} — pass --force to overwrite)`);
+        return;
+      }
+    }
+  }
+
+  await ref.set(docData, { merge: true });
 
   console.log(`  Firestore: upserted articles/${id}`);
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-async function processGame(gameId: string, seed: SeedData): Promise<void> {
+async function processGame(
+  gameId: string,
+  seed: SeedData,
+  publish: boolean,
+  force: boolean
+): Promise<void> {
   console.log(`\nProcessing game: ${gameId}`);
 
   const ctx = assembleGameContext(gameId, seed);
+  // Refuse postponed/canceled up front — before any LLM call is spent.
+  assertArticleEligible(ctx.game);
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
   let editorial: Editorial;
@@ -625,22 +842,35 @@ async function processGame(gameId: string, seed: SeedData): Promise<void> {
     console.log("  LLM generation complete.");
   }
 
-  const article = buildArticleDoc(gameId, ctx, editorial, model);
+  const article = buildArticleDoc(gameId, ctx, editorial, model, publish);
+
+  // Hard gate: refuse to write any article containing betting language.
+  const term = findBettingLanguage(article);
+  if (term) {
+    throw new Error(
+      `Betting language ("${term}") found in the generated article for ${gameId} — refusing to write it.`
+    );
+  }
 
   // Write to seed_data/generated/<gameId>.json
   mkdirSync(OUT_DIR, { recursive: true });
   const outPath = resolve(OUT_DIR, `${gameId}.json`);
   writeFileSync(outPath, JSON.stringify(article, null, 2), "utf8");
-  console.log(`  Written: ${outPath}`);
+  console.log(`  Written: ${outPath} (status: ${article.status}, confidence: ${article.confidence})`);
 
   // Upsert to Firestore if emulator is running
   if (process.env.FIRESTORE_EMULATOR_HOST) {
-    await upsertToFirestore(article);
+    await upsertToFirestore(article, force);
   }
 }
 
 async function main() {
   const seed = loadSeedData();
+  const publish = process.argv.includes("--publish");
+  const force = process.argv.includes("--force");
+  if (!publish) {
+    console.log("Articles will be written as DRAFTS — pass --publish to mark them published.");
+  }
 
   // Parse --game=<id> arg
   const gameArg = process.argv.find((a) => a.startsWith("--game="));
@@ -670,7 +900,7 @@ async function main() {
   let failures = 0;
   for (const id of gameIds) {
     try {
-      await processGame(id, seed);
+      await processGame(id, seed, publish, force);
       successes++;
     } catch (err) {
       console.error(`  Error processing ${id}:`, err instanceof Error ? err.message : err);
@@ -682,7 +912,14 @@ async function main() {
   process.exit(failures > 0 ? 1 : 0);
 }
 
-main().catch((err) => {
-  console.error("Fatal error:", err);
-  process.exit(1);
-});
+// Only run the CLI when executed directly (tsx generate_articles.ts) — importing
+// this module (e.g. from functions/src/__tests__/articles.test.ts) must not
+// trigger a generation run.
+const entryPoint = process.argv[1] ? resolve(process.argv[1]) : "";
+const thisFile = fileURLToPath(import.meta.url);
+if (entryPoint && entryPoint.toLowerCase() === thisFile.toLowerCase()) {
+  main().catch((err) => {
+    console.error("Fatal error:", err);
+    process.exit(1);
+  });
+}

@@ -48,21 +48,31 @@ export function successRate(successfulPlays: number, totalPlays: number): number
   return successfulPlays / totalPlays;
 }
 
+// PARITY: the two composite formulas below are mirrored exactly in the Dart
+// twin (packages/stats_engine/dart/lib/src/football/football_metrics.dart).
+// Each term is clamped to 0..1 before weighting so one bad component can never
+// silently cancel the other. Both test suites assert the same shared fixtures.
+
+const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
+
 /**
- * Estimated Drive Finisher score (0-100) based on redzone efficiency and PPG
- * Used for the fan-friendly "Drive Finisher" label
+ * Estimated Drive Finisher score (0-100) based on redzone efficiency and PPG.
+ * Used for the fan-friendly "Drive Finisher" label (see labels.ts:
+ * metrics ['redZoneScorePct', 'pointsPerGame'] — a 50/50 blend).
+ * Formula: clamp01(redZonePct) * 50 + clamp01(pointsPerGame / 50) * 50, rounded.
  */
 export function driveFinisherScore(redZonePct: number, pointsPerGame: number): number {
-  const rzScore = Math.min(redZonePct, 1) * 50;
-  const ppgScore = Math.min(pointsPerGame / 50, 1) * 50;
+  const rzScore = clamp01(redZonePct) * 50;
+  const ppgScore = clamp01(pointsPerGame / 50) * 50;
   return Math.round(rzScore + ppgScore);
 }
 
 /**
- * Chaos Factor (0-100) — composite of sacks and turnover margin
+ * Chaos Factor (0-100) — composite of sacks and turnover margin.
+ * Formula: clamp01(sacksPerGame / 5) * 50 + clamp01((turnoverMargin + 3) / 6) * 50, rounded.
  */
 export function chaosFactorScore(sacksPerGame: number, turnoverMarginVal: number): number {
-  const sackScore = Math.min(sacksPerGame / 5, 1) * 50;
-  const toScore = Math.min((turnoverMarginVal + 3) / 6, 1) * 50;
+  const sackScore = clamp01(sacksPerGame / 5) * 50;
+  const toScore = clamp01((turnoverMarginVal + 3) / 6) * 50;
   return Math.round(sackScore + toScore);
 }

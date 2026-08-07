@@ -177,9 +177,21 @@ class Game {
 
   bool get isFinal => status == GameStatus.finalScore;
   bool get isUpcoming => status == GameStatus.scheduled;
-  bool get kentuckyWon => result == 'win';
 
-  /// Kentucky's score regardless of home/away (seed is always isHome=true).
+  /// Whether Kentucky won: true/false when the outcome is knowable (an explicit
+  /// `result`, else derived from the posted scores), null when it is not (e.g.
+  /// a final doc with no result and missing scores). Callers must treat null as
+  /// "unknown" — never assert a win OR a loss without data (hard rule 6).
+  bool? get kentuckyWon {
+    if (result == 'win') return true;
+    if (result == 'loss') return false;
+    final int? ky = kentuckyScore;
+    final int? opp = opponentScore;
+    if (ky == null || opp == null || ky == opp) return null;
+    return ky > opp;
+  }
+
+  /// Kentucky's score regardless of home/away.
   int? get kentuckyScore => isHome ? homeScore : awayScore;
   int? get opponentScore => isHome ? awayScore : homeScore;
 
@@ -348,6 +360,11 @@ class TeamStat {
   String get record => stats['record']?.toString() ?? '—';
 
   double? statValue(String key) => _toDouble(stats[key]);
+
+  /// The 0..100 percentile for a metric when the document's rankings carry one
+  /// (convention: `<key>Percentile`), else null. Percentiles are never invented
+  /// client-side — no doc value, no bar (hard rule 6).
+  int? percentileFor(String key) => rankings['${key}Percentile'];
 
   factory TeamStat.fromJson(Map<String, dynamic> j) => TeamStat(
     id: j['id']?.toString() ?? '',
@@ -1160,6 +1177,7 @@ class VaultLegend {
     required this.status,
     required this.confidence,
     required this.generatedAt,
+    required this.updatedAt,
   });
 
   final String id;
@@ -1184,6 +1202,9 @@ class VaultLegend {
 
   final DateTime? generatedAt;
 
+  /// Stamped by the admin Vault editor on every save; null on untouched seeds.
+  final DateTime? updatedAt;
+
   bool get isDraft => status == 'draft';
 
   factory VaultLegend.fromJson(Map<String, dynamic> j) => VaultLegend(
@@ -1206,6 +1227,7 @@ class VaultLegend {
     status: j['status']?.toString() ?? 'draft',
     confidence: j['confidence']?.toString() ?? 'researched',
     generatedAt: _toDate(j['generatedAt']),
+    updatedAt: _toDate(j['updatedAt']),
   );
 }
 

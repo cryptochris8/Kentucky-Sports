@@ -21,6 +21,9 @@ dependencies:
   # Date/time + number formatting for countdowns and stat values.
   intl: ^0.20.2
 
+  # Local persistence for onboarding completion (survives restarts).
+  shared_preferences: ^2.3.4
+
   # Typography. google_fonts downloads fonts at runtime from a Google CDN;
   # the theme falls back to a bundled system font if unavailable, so the app
   # still runs fully offline.

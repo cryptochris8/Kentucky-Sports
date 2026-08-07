@@ -250,7 +250,14 @@ export interface PlayerProfile {
   jersey?: number;
   sourceIds?: Record<string, string>;
   active: boolean;
+  // Provenance trio (hard rule 6). Optional here because a bio is not itself a
+  // stat document, but every synced profile SHOULD carry all three — the CFBD/
+  // CBBD sync stamps source, and freshness/confidence let the UI show how
+  // current the roster info is.
   source?: string;
+  updatedAt?: FirestoreTimestamp;
+  /** e.g. "official" (provider roster), "manual", "demo" */
+  confidence?: string;
 }
 
 // ───────────────────────────────────────────────
@@ -412,6 +419,11 @@ export interface HighSchool {
   createdAt?: FirestoreTimestamp;
 }
 
+/**
+ * High-school game (score-carrying — hard rule 6 applies in full).
+ * Every row must say where it came from, when, and how trustworthy it is;
+ * importers/admin CSV loaders must stamp all three.
+ */
 export interface HighSchoolGame {
   id?: string;
   schoolId: string;
@@ -424,6 +436,9 @@ export interface HighSchoolGame {
   opponentScore: number | null;
   source: string;
   sourceUrl: string | null;
+  updatedAt: FirestoreTimestamp;
+  /** e.g. "official" (KHSAA), "manual" (admin-entered), "demo" */
+  confidence: string;
 }
 
 // ───────────────────────────────────────────────
@@ -472,7 +487,10 @@ export interface AppConfig {
 // Sync Runs
 // ───────────────────────────────────────────────
 
-export type SyncRunStatus = 'running' | 'success' | 'error';
+// 'skipped' = the run intentionally did no work (no API key configured, or data
+// already fresh). Distinct from 'success' so freshness checks and the admin
+// Sync Health page never mistake a no-op for a real sync.
+export type SyncRunStatus = 'running' | 'success' | 'error' | 'skipped';
 export type SyncProvider = 'cfbd' | 'cbbd' | 'khsaa' | 'manual';
 
 export interface SyncRun {

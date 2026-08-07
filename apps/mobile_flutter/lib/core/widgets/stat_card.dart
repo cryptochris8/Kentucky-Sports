@@ -210,8 +210,27 @@ class _StatCardState extends State<StatCard> {
   }
 }
 
+/// Decides which side of a metric comparison earns the highlight.
+///
+/// STRICT comparison: exactly equal values are a tie and neither side wins —
+/// the UI must never assert a Kentucky edge the data does not support
+/// (mirrors the stat-story "even" verdict semantics in the stats engine).
+({bool kentuckyWins, bool tie}) compareEdge({
+  required double kentucky,
+  required double opponent,
+  required bool higherIsBetter,
+}) {
+  if (kentucky == opponent) return (kentuckyWins: false, tie: true);
+  return (
+    kentuckyWins: higherIsBetter ? kentucky > opponent : kentucky < opponent,
+    tie: false,
+  );
+}
+
 /// A compact comparison row: Kentucky value vs opponent value for one metric,
-/// with the winning side highlighted. Used in Stats Lab + Gameday compare.
+/// with the winning side highlighted. On a [tie] neither side highlights —
+/// both values dim to the muted on-surface color and both dots stay neutral.
+/// Used in Stats Lab + Gameday compare.
 class CompareRow extends StatelessWidget {
   const CompareRow({
     super.key,
@@ -219,6 +238,7 @@ class CompareRow extends StatelessWidget {
     required this.kentuckyText,
     required this.opponentText,
     required this.kentuckyWins,
+    this.tie = false,
     this.opponentName = 'OPP',
   });
 
@@ -226,6 +246,10 @@ class CompareRow extends StatelessWidget {
   final String kentuckyText;
   final String opponentText;
   final bool kentuckyWins;
+
+  /// True when the compared values are exactly equal — no side highlights.
+  final bool tie;
+
   final String opponentName;
 
   @override
@@ -236,10 +260,12 @@ class CompareRow extends StatelessWidget {
     // Theme-aware so the compare numbers read in light AND dark: the winning
     // side uses the brand primary / gold accent, the trailing side dims to the
     // muted on-surface color (instead of literal navy that vanished in dark).
+    // On a tie there is no winning side — both stay muted (no false edge).
+    final bool opponentWins = !kentuckyWins && !tie;
     final Color kyColor =
         kentuckyWins ? scheme.primary : scheme.onSurfaceVariant;
     final Color oppColor =
-        !kentuckyWins ? scheme.tertiary : scheme.onSurfaceVariant;
+        opponentWins ? scheme.tertiary : scheme.onSurfaceVariant;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -266,7 +292,7 @@ class CompareRow extends StatelessWidget {
                   children: <Widget>[
                     _dot(kentuckyWins, scheme.primary, scheme.outline),
                     const SizedBox(width: 10),
-                    _dot(!kentuckyWins, scheme.tertiary, scheme.outline),
+                    _dot(opponentWins, scheme.tertiary, scheme.outline),
                   ],
                 ),
               ],

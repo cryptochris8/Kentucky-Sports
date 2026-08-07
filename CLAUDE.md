@@ -6,10 +6,17 @@ and `docs/04_FIREBASE_DATA_MODEL.md`).
 
 ## What this is
 
-**Bluegrass Gameday** — an independent Kentucky sports fan + statistics companion app.
-Football and men's basketball first, then women's basketball, baseball, volleyball, and
-Kentucky high school sports. It is **not** a betting app and **not** affiliated with the
-University of Kentucky.
+**Bluegrass Gameday** — an independent **Kentucky-identity** app anchored by UK Football
+and Men's Basketball (see `docs/VISION.md` for the five pillars: The Cats · The Vault ·
+Bluegrass Preps · All Things Kentucky · The Porch). It is **not** a betting app and
+**not** affiliated with the University of Kentucky. Brand name is still an open decision
+("Barrels & Banners" leading — see VISION "Open decisions").
+
+**Shipped IA (post-redesign):** 5-tab hub — Home · Gameday · Vault · Preps · Profile —
+in the Hybrid design system (Bento Home/Stats, Broadcast Gameday, Editorial Vault; KY blue
+`#0033A0` on white, full light + dark). There is no "Pulse" screen and no top-level
+"Stats Lab" tab anymore; stats live inside Gameday's Breakdown · Stats · Predictions
+sub-tabs.
 
 ## Locked decisions (this build)
 
@@ -56,20 +63,58 @@ docs/                    The full product/design pack (14 docs + prompts + schem
 ```bash
 firebase emulators:start          # Auth :9099  Firestore :8080  Functions :5001  UI :4000
 npm run seed                      # load seed_data into the Firestore emulator
-# Flutter:  cd apps/mobile_flutter && flutter run
+npm run dev-claim                 # grant the admin custom claim on the Auth emulator
+                                  # (run once after "Dev sign-in" — the portal's RoleGuard
+                                  #  AND firestore.rules read request.auth.token.role)
+# Flutter:  cd apps/mobile_flutter && flutter run -d web-server --web-port 5050
 # Admin:    cd apps/admin_portal && npm run dev
 # Functions:cd functions && npm run build && npm test
 ```
 
+Data/AI pipeline (root passthroughs; real keys live in gitignored `functions/.env.local`,
+verify with `npm run check-keys` — masked output only):
+
+```bash
+npm run sync-data          # real CFBD/CBBD rosters + stats into the seed
+npm run vault-sync         # 83 UK season records (FB 1985-2025, MBB 1984-85 → 2025-26)
+npm run generate           # Claude article drafts   |  npm run apply-articles
+npm run generate-legend    # Vault "Eras & Legends" feature from a sourced brief
+```
+
+`sync-data`, `vault-sync`, and `generate-legend` wrap `NODE_TLS_REJECT_UNAUTHORIZED=0`
+(corporate SSL-proxy workaround — **local dev only**, never CI/production). A pre-commit
+guard at `.githooks/pre-commit` (installed via `git config core.hooksPath .githooks`)
+blocks staged `.env` files and key-shaped strings.
+
 The Flutter app ships with a **mock data source** that reads the bundled seed, so it runs
-with zero backend. Point it at the emulator by flipping the repository's data-source flag.
+with zero backend. `useFirestore` in `apps/mobile_flutter/lib/core/config.dart` is
+**locked false** — flipping it requires the prerequisites listed in that file's doc
+comment (flutterfire configure, Firebase.initializeApp, a real FirestoreDataSource).
 
 ## Build status
 
 - [x] Phase 0 — monorepo scaffold, Firebase config, emulator, seed data, security rules.
-- [~] Phase 1 — Flutter MVP screens (Pulse, Teams, Gameday HQ, Stats Lab, Predictions,
-      Profile) on seed data; Functions skeleton (prediction scoring, XP, badges);
-      admin portal skeleton.
-- [ ] Phase 2 — real CFBD/CBBD sync, KHSAA link cards. (Do not start without asking.)
+- [x] Phase 1 — Flutter MVP on seed data; Functions (prediction scoring, XP, badges);
+      admin portal.
+- [x] Phase 2 — real CFBD/CBBD rosters + stats, AI article pipeline (Claude), KHSAA
+      link cards in Preps.
+- [x] The Vault — 83 real season records + "Eras & Legends" pipeline (Rupp feature is the
+      showcase); admin Vault editor MVP (list → editor → live preview → guarded publish).
+- [x] UI redesign — Hybrid 3-skin system + 5-tab hub, light + dark, shipped in 3 passes.
+- [ ] Phase C+ — Bluegrass Preps depth (Sweet 16 history), All Things Kentucky county
+      spotlights, The Porch community. (Ask before starting.)
+
+## Pre-launch checklist (before ANY production deploy)
+
+1. **Secrets:** bind CFBD/CBBD/Anthropic keys to Functions via `defineSecret` /
+   `firebase functions:secrets:set` — `.env.local` never deploys.
+2. **Admin hosting:** create a real `apps/admin_portal/.env.production` (Firebase web
+   config + `VITE_USE_EMULATOR` unset/false) — the build fails safe to production mode
+   but needs real project values.
+3. **App Check:** enforce on Functions + Firestore (currently not enforced anywhere).
+4. **Rate limiting:** add abuse control to callables (none exists).
+5. Remove/scope the SSL-proxy workarounds (`strict-ssl=false` .npmrc files, TLS env flag)
+   — they must never reach CI or production.
+6. Re-run the security review; deploy rules + indexes together (`npm run deploy:rules`).
 
 See `docs/12_MVP_ROADMAP.md` and `docs/prompts/` for the phased build prompts.

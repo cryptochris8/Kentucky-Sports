@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { listPosts, updatePostStatus, toDisplayDate } from '../data/firestore';
+import { listPosts, moderatePost, toDisplayDate } from '../data/firestore';
+import { useAuth } from '../auth/AuthContext';
 import type { CommunityPost, PostStatus } from '../data/types';
 import {
   PageHeader, Button, Badge, Table, Thead, Th, Tbody, Tr, Td,
@@ -25,6 +26,7 @@ function statusColor(s: PostStatus): 'green' | 'yellow' | 'gray' | 'red' {
 }
 
 export function ModerationPage() {
+  const { user } = useAuth();
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -35,6 +37,7 @@ export function ModerationPage() {
     setLoading(true);
     try {
       setPosts(await listPosts(filterStatus));
+      setError('');
     } catch (err: unknown) {
       setError((err as { message?: string }).message ?? 'Failed to load posts.');
     } finally {
@@ -44,10 +47,20 @@ export function ModerationPage() {
 
   useEffect(() => { load(); }, [filterStatus]);
 
+  // Every status change writes a moderation_actions audit doc in the same
+  // batch (who moderated, what, when — required for community-content policy).
   const handleStatusChange = async (post: CommunityPost, status: PostStatus) => {
+    let reason: string | undefined;
+    if (status === 'removed') {
+      const input = window.prompt(
+        'Remove this post? Optional reason for the audit log (Cancel aborts):', '',
+      );
+      if (input === null) return;
+      reason = input.trim() || undefined;
+    }
     setActionLoading(post.id);
     try {
-      await updatePostStatus(post.id, status);
+      await moderatePost(post.id, status, user?.uid ?? 'unknown', reason);
       await load();
     } catch (err: unknown) {
       alert((err as { message?: string }).message ?? 'Action failed.');

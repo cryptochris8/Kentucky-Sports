@@ -15,6 +15,7 @@ import '../features/settings/settings_screen.dart';
 import '../features/teams/team_page_screen.dart';
 import '../features/vault/vault_legend_screen.dart';
 import '../features/vault/vault_screen.dart';
+import '../features/vault/vault_season_detail_screen.dart';
 import 'shell.dart';
 
 /// Route path constants to avoid stringly-typed navigation.
@@ -36,6 +37,7 @@ abstract final class Routes {
   static String team(String teamId) => '/team/$teamId';
   static String player(String playerId) => '/player/$playerId';
   static String vaultLegend(String legendId) => '/vault/legend/$legendId';
+  static String vaultSeason(String seasonId) => '/vault/season/$seasonId';
 }
 
 /// Builds the app [GoRouter]. Uses a [StatefulShellRoute] for the bottom nav so
@@ -61,6 +63,12 @@ GoRouter buildRouter(Ref ref) {
         path: '/vault/legend/:legendId',
         builder: (BuildContext context, GoRouterState state) =>
             VaultLegendScreen(legendId: state.pathParameters['legendId']!),
+      ),
+      GoRoute(
+        path: '/vault/season/:seasonId',
+        builder: (BuildContext context, GoRouterState state) =>
+            VaultSeasonDetailScreen(
+                seasonId: state.pathParameters['seasonId']!),
       ),
       GoRoute(
         path: '/team/:teamId',

@@ -15,7 +15,11 @@
         ".git",
         "firebase-debug.log",
         "firebase-debug.*.log",
-        "*.local"
+        "*.local",
+        ".env",
+        ".env.*",
+        "*.env",
+        ".npmrc"
       ],
       "predeploy": [
         "npm --prefix \"$RESOURCE_DIR\" run build"
@@ -25,6 +29,7 @@
   "hosting": {
     "public": "apps/admin_portal/dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "predeploy": ["npm --prefix apps/admin_portal run build"],
     "rewrites": [{ "source": "**", "destination": "/index.html" }]
   },
   "emulators": {

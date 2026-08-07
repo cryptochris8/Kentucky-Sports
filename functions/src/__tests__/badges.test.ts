@@ -1,61 +1,8 @@
 import { describe, it, expect } from 'vitest';
-
-// Inline the criteria-matching logic for unit testing
-// This mirrors the switch in badges.ts without needing Firestore
-
-interface BadgeCriteria {
-  type: string;
-  threshold: number;
-}
-
-interface TestContext {
-  predictionCount?: number;
-  predictionStreak?: number;
-  hasExactScore?: boolean;
-  hasRivalryCorrect?: boolean;
-  hasUpsetCorrect?: boolean;
-  openedStatsLab?: boolean;
-  viewedFourFactors?: boolean;
-  viewedAdvancedFootball?: boolean;
-  matchupViewCount?: number;
-  gamedayOpenCount?: number;
-  gamedayOpenBballCount?: number;
-  followedHighSchool?: boolean;
-  viewedHsScoreboard?: boolean;
-}
-
-function checkBadgeCriteria(criteria: BadgeCriteria, context: TestContext): boolean {
-  switch (criteria.type) {
-    case 'prediction_count':
-      return (context.predictionCount ?? 0) >= criteria.threshold;
-    case 'prediction_streak':
-      return (context.predictionStreak ?? 0) >= criteria.threshold;
-    case 'rivalry_correct':
-      return (context.hasRivalryCorrect ?? false) && criteria.threshold <= 1;
-    case 'upset_correct':
-      return (context.hasUpsetCorrect ?? false) && criteria.threshold <= 1;
-    case 'exact_score':
-      return (context.hasExactScore ?? false) && criteria.threshold <= 1;
-    case 'open_stats_lab':
-      return (context.openedStatsLab ?? false) && criteria.threshold <= 1;
-    case 'view_four_factors':
-      return (context.viewedFourFactors ?? false) && criteria.threshold <= 1;
-    case 'view_advanced_football':
-      return (context.viewedAdvancedFootball ?? false) && criteria.threshold <= 1;
-    case 'view_matchup':
-      return (context.matchupViewCount ?? 0) >= criteria.threshold;
-    case 'gameday_open':
-      return (context.gamedayOpenCount ?? 0) >= criteria.threshold;
-    case 'gameday_open_bball':
-      return (context.gamedayOpenBballCount ?? 0) >= criteria.threshold;
-    case 'follow_high_school':
-      return (context.followedHighSchool ?? false) && criteria.threshold <= 1;
-    case 'view_hs_scoreboard':
-      return (context.viewedHsScoreboard ?? false) && criteria.threshold <= 1;
-    default:
-      return false;
-  }
-}
+// Import the REAL criteria matcher (pure, no Firebase imports) — a regression
+// in badgeLogic.ts must fail this suite, not a private re-implementation.
+import { checkBadgeCriteria, type BadgeContext } from '../rewards/badgeLogic';
+import type { BadgeCriteria } from '@bluegrass/shared-models';
 
 describe('badge criteria evaluation', () => {
   describe('first_pick (prediction_count threshold 1)', () => {
@@ -147,8 +94,10 @@ describe('badge criteria evaluation', () => {
   });
 
   describe('unknown criteria type', () => {
-    it('returns false for unknown type', () => {
-      expect(checkBadgeCriteria({ type: 'unknown_type_xyz', threshold: 1 }, {})).toBe(false);
+    it('returns false for unknown type (bad Firestore data must not award)', () => {
+      const criteria = { type: 'unknown_type_xyz', threshold: 1 } as unknown as BadgeCriteria;
+      const context: BadgeContext = {};
+      expect(checkBadgeCriteria(criteria, context)).toBe(false);
     });
   });
 });

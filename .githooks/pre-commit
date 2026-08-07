@@ -1,0 +1,35 @@
+#!/bin/sh
+# Bluegrass Gameday pre-commit guard.
+# Blocks commits that would stage secrets: any .env file, or key-shaped strings
+# (Anthropic sk-ant-…, Google AIza…, service-account JSON) in the staged diff.
+# Bypass ONLY if you are certain: git commit --no-verify
+
+fail() {
+  echo "" >&2
+  echo "✋ pre-commit guard: $1" >&2
+  echo "   Nothing was committed. Unstage the offending file(s) and retry." >&2
+  exit 1
+}
+
+# 1. No .env-style files may be staged (allow the .env.example placeholders).
+staged_env=$(git diff --cached --name-only --diff-filter=ACMR |
+  grep -Ei '(^|/)\.env(\.|$)|\.env$' |
+  grep -Ev '\.env\.example$|\.env\.production\.example$')
+[ -n "$staged_env" ] && fail "an .env file is staged:
+$staged_env"
+
+# 2. No service-account files.
+staged_sa=$(git diff --cached --name-only --diff-filter=ACMR |
+  grep -Ei 'serviceaccount.*\.json|google-services\.json|GoogleService-Info\.plist')
+[ -n "$staged_sa" ] && fail "a service-account/credentials file is staged:
+$staged_sa"
+
+# 3. No key-shaped strings in the staged diff content (added lines only).
+if git diff --cached --diff-filter=ACMR -U0 |
+  grep -E '^\+' |
+  grep -Ev '^\+\+\+' |
+  grep -qE 'sk-ant-[A-Za-z0-9_-]{8,}|AIza[A-Za-z0-9_-]{20,}|-----BEGIN (RSA |EC )?PRIVATE KEY-----'; then
+  fail "a key-shaped string (sk-ant-… / AIza… / private key) appears in the staged diff"
+fi
+
+exit 0

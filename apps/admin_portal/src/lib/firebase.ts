@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { isEmulatorFlagEnabled } from './emulatorFlag';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? 'demo-key',
@@ -13,12 +14,19 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
+// TODO(pre-launch): wire initializeAppCheck + ReCaptchaEnterpriseProvider here
+// as part of the first real deploy (see docs/13_TESTING_DEPLOYMENT.md). App
+// Check is the documented compensating control for the public web config.
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-// Connect to Firebase emulators when VITE_USE_EMULATOR is not explicitly 'false'.
-// Module-level flag prevents double-connection during Vite HMR.
-const useEmulator = import.meta.env.VITE_USE_EMULATOR !== 'false';
+// Emulators are strictly OPT-IN: connect only when VITE_USE_EMULATOR === 'true'
+// (.env.development sets it; production builds without the flag talk to the real
+// project instead of dead localhost ports). Module-level flag prevents
+// double-connection during Vite HMR. Exported so every dev-only surface
+// (LoginPage's dev sign-in block, AuthContext's devSignIn) gates on the SAME
+// strict opt-in predicate instead of re-deriving its own.
+export const useEmulator = isEmulatorFlagEnabled(import.meta.env.VITE_USE_EMULATOR);
 
 declare global {
   interface Window {

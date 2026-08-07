@@ -11,6 +11,7 @@ function statusColor(s: SyncRun['status']): 'green' | 'red' | 'blue' | 'yellow' 
     case 'success': return 'green';
     case 'error': return 'red';
     case 'running': return 'blue';
+    case 'skipped': return 'yellow'; // no-op run: no key configured, or data fresh
     default: return 'yellow';
   }
 }

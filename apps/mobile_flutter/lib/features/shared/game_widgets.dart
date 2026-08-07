@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/theme/colors.dart';
@@ -97,7 +99,7 @@ class MatchupHero extends StatelessWidget {
                   name: 'Kentucky',
                   short: 'UK',
                   score: isFinal ? game.kentuckyScore : null,
-                  isWinner: isFinal && game.kentuckyWon,
+                  isWinner: isFinal && game.kentuckyWon == true,
                   accent: BgColors.goldBright,
                 ),
               ),
@@ -124,7 +126,7 @@ class MatchupHero extends StatelessWidget {
                   name: game.opponentName,
                   short: game.opponentShort,
                   score: isFinal ? game.opponentScore : null,
-                  isWinner: isFinal && !game.kentuckyWon,
+                  isWinner: isFinal && game.kentuckyWon == false,
                   accent: Colors.white,
                 ),
               ),
@@ -239,7 +241,7 @@ class _BroadcastMatchupHero extends StatelessWidget {
                   name: 'Kentucky',
                   short: 'UK',
                   score: isFinal ? game.kentuckyScore : null,
-                  isWinner: isFinal && game.kentuckyWon,
+                  isWinner: isFinal && game.kentuckyWon == true,
                   accent: BgColors.goldBright,
                 ),
               ),
@@ -270,7 +272,7 @@ class _BroadcastMatchupHero extends StatelessWidget {
                   name: game.opponentName,
                   short: game.opponentShort,
                   score: isFinal ? game.opponentScore : null,
-                  isWinner: isFinal && !game.kentuckyWon,
+                  isWinner: isFinal && game.kentuckyWon == false,
                   accent: Colors.white,
                   alignEnd: true,
                 ),
@@ -461,20 +463,99 @@ class _TeamColumn extends StatelessWidget {
   }
 }
 
-/// A segmented countdown to a game start (days / hours / minutes).
-class CountdownStrip extends StatelessWidget {
-  const CountdownStrip({super.key, required this.target, this.label});
+/// A segmented countdown to a game start (days / hours / minutes) that ticks
+/// while on screen via a periodic [Timer] (disposed with the widget). The
+/// timer only runs while there is a countdown left: an already-live target
+/// schedules none, and a countdown cancels its own timer once it reaches game
+/// time — the live banner is static, so further ticks would be pure churn.
+/// Pass [sport] for sport-correct copy ("Kickoff" / "Tipoff" / …) — never
+/// football-only wording on a basketball game.
+class CountdownStrip extends StatefulWidget {
+  const CountdownStrip({
+    super.key,
+    required this.target,
+    this.label,
+    this.sport,
+    this.clock,
+  });
 
   final DateTime? target;
   final String? label;
 
+  /// Sport key (e.g. `mens_basketball`) used for the "game time" copy.
+  final String? sport;
+
+  /// Injectable time source for tests; defaults to [DateTime.now].
+  @visibleForTesting
+  final DateTime Function()? clock;
+
+  @override
+  State<CountdownStrip> createState() => _CountdownStripState();
+}
+
+class _CountdownStripState extends State<CountdownStrip> {
+  Timer? _timer;
+
+  /// Whether the periodic refresh timer is currently scheduled (test hook).
+  @visibleForTesting
+  bool get isTicking => _timer?.isActive ?? false;
+
+  ({int days, int hours, int minutes, bool live}) get _parts =>
+      Fmt.countdownParts(widget.target, from: widget.clock?.call());
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _armTimer();
+  }
+
+  @override
+  void didUpdateWidget(CountdownStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.target != widget.target) _armTimer();
+  }
+
+  /// Schedules the periodic refresh, but only while a countdown is running —
+  /// an already-live target renders a static banner, so no timer is needed.
+  void _armTimer() {
+    _timer?.cancel();
+    _timer = null;
+    if (_parts.live) return;
+    // The display resolution is one minute, so a 30s tick keeps it accurate.
+    // Reduce-motion aware: with animations disabled we refresh only once a
+    // minute (content stays honest with the least possible churn).
+    final bool reduceMotion =
+        MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    _timer = Timer.periodic(
+      Duration(seconds: reduceMotion ? 60 : 30),
+      (_) {
+        // Stop ticking once game time arrives: one last rebuild flips the
+        // strip to the (static) live banner, then the timer is done.
+        if (_parts.live) {
+          _timer?.cancel();
+          _timer = null;
+        }
+        setState(() {});
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final ({int days, int hours, int minutes, bool live}) parts =
-        Fmt.countdownParts(target);
-    final TextTheme text = Theme.of(context).textTheme;
+    final ({int days, int hours, int minutes, bool live}) parts = _parts;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
 
     if (parts.live) {
+      final String? verb =
+          widget.sport == null ? null : Fmt.startVerb(widget.sport!);
       return BgCard(
         color: BgColors.deepBlue,
         child: Row(
@@ -482,7 +563,7 @@ class CountdownStrip extends StatelessWidget {
             const Icon(Icons.bolt_rounded, color: BgColors.goldBright),
             const SizedBox(width: 8),
             Text(
-              'Game time! Kickoff is here.',
+              verb == null ? "It's game time!" : 'Game time! $verb is here.',
               style: text.titleMedium?.copyWith(color: Colors.white),
             ),
           ],
@@ -496,12 +577,11 @@ class CountdownStrip extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              const Icon(Icons.timer_outlined,
-                  size: 16, color: BgColors.deepBlue),
+              Icon(Icons.timer_outlined, size: 16, color: scheme.primary),
               const SizedBox(width: 6),
               Text(
-                label ?? 'Next game starts in',
-                style: BgTypography.eyebrow(BgColors.slate),
+                widget.label ?? 'Next game starts in',
+                style: BgTypography.eyebrow(scheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -510,9 +590,9 @@ class CountdownStrip extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
               _TimeBlock(value: parts.days, unit: 'DAYS'),
-              _sep(),
+              _sep(scheme),
               _TimeBlock(value: parts.hours, unit: 'HRS'),
-              _sep(),
+              _sep(scheme),
               _TimeBlock(value: parts.minutes, unit: 'MIN'),
             ],
           ),
@@ -521,9 +601,9 @@ class CountdownStrip extends StatelessWidget {
     );
   }
 
-  Widget _sep() => Text(
+  Widget _sep(ColorScheme scheme) => Text(
         ':',
-        style: BgTypography.statNumber(BgColors.hairline, size: 28),
+        style: BgTypography.statNumber(scheme.outline, size: 28),
       );
 }
 
@@ -535,13 +615,14 @@ class _TimeBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Column(
       children: <Widget>[
         Text(
           value.toString().padLeft(2, '0'),
-          style: BgTypography.statNumber(BgColors.deepBlue, size: 34),
+          style: BgTypography.statNumber(scheme.primary, size: 34),
         ),
-        Text(unit, style: BgTypography.eyebrow(BgColors.mist)),
+        Text(unit, style: BgTypography.eyebrow(scheme.onSurfaceVariant)),
       ],
     );
   }
@@ -562,7 +643,9 @@ class FanConfidenceMeter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
     return BgCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -572,15 +655,14 @@ class FanConfidenceMeter extends StatelessWidget {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  const Icon(Icons.groups_rounded,
-                      size: 18, color: BgColors.deepBlue),
+                  Icon(Icons.groups_rounded, size: 18, color: scheme.primary),
                   const SizedBox(width: 6),
                   Text(title, style: text.titleMedium),
                 ],
               ),
               Text(
                 '$confidence%',
-                style: BgTypography.statNumber(BgColors.deepBlue, size: 24),
+                style: BgTypography.statNumber(scheme.primary, size: 24),
               ),
             ],
           ),

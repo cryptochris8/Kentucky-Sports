@@ -9,7 +9,6 @@ import '../../app/theme/typography.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/vault_providers.dart';
 import '../../core/widgets/widgets.dart';
-import 'vault_season_detail_screen.dart';
 import 'widgets/widgets.dart';
 
 /// The Vault — Kentucky History, rendered as a premium "Bluegrass Editorial"
@@ -377,11 +376,7 @@ class _SeasonRow extends StatelessWidget {
     final bool isBasketball = season.sport == 'mens_basketball';
 
     return InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => VaultSeasonDetailScreen(season: season),
-        ),
-      ),
+      onTap: () => context.push(Routes.vaultSeason(season.id)),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
         child: Row(

@@ -1,7 +1,7 @@
 // Pure prediction scoring logic — no I/O, no Firebase imports.
 // Imported by scoring.ts (Firestore writer) and by unit tests.
 
-import type { PredictionEntry, Prediction, PredictionType } from '@bluegrass/shared-models';
+import type { PredictionEntry, Prediction, PredictionType, XpEvent } from '@bluegrass/shared-models';
 
 // Points awarded per prediction type (per doc 06)
 export const BASE_POINTS: Record<PredictionType, number> = {
@@ -18,6 +18,18 @@ export const BASE_POINTS: Record<PredictionType, number> = {
 export function computePoints(type: PredictionType, isCorrect: boolean): number {
   if (!isCorrect) return 0;
   return BASE_POINTS[type] ?? 10;
+}
+
+/**
+ * Pure function: the XP events a scored entry earns (doc 07).
+ * A correct pick earns correct_prediction; a correct exact-score pick
+ * additionally earns exact_score_bonus. Incorrect picks earn nothing.
+ */
+export function xpEventsForEntry(type: PredictionType, isCorrect: boolean): XpEvent[] {
+  if (!isCorrect) return [];
+  const events: XpEvent[] = ['correct_prediction'];
+  if (type === 'exact_score') events.push('exact_score_bonus');
+  return events;
 }
 
 /** Pure function: determines if a pick is correct */

@@ -110,6 +110,13 @@ export function normalizeCbbdTeamStat(
 
 // ── Client ───────────────────────────────────────────────────────────────────
 
+/** Abort a hung provider connection well before the function's own timeout. */
+const FETCH_TIMEOUT_MS = 15_000;
+/** Delay before the single retry on transient (429/5xx/network) failures. */
+const RETRY_DELAY_MS = 2_000;
+/** Error messages end up in sync_runs docs — never echo a full response body. */
+const ERROR_BODY_LIMIT = 500;
+
 export class CbbdClient {
   private readonly apiKey: string;
   private readonly baseUrl: string;
@@ -133,17 +140,40 @@ export class CbbdClient {
     const url = new URL(`${this.baseUrl}${path}`);
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
 
-    const res = await fetch(url.toString(), {
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        Accept: 'application/json',
-      },
-    });
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= 1; attempt++) {
+      if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
 
-    if (!res.ok) {
-      throw new Error(`[CbbdClient] HTTP ${res.status} for ${path}: ${await res.text()}`);
+      let res: Response;
+      try {
+        res = await fetch(url.toString(), {
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            Accept: 'application/json',
+          },
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+      } catch (err) {
+        // Timeout / network failure — worth one retry.
+        lastError = new Error(
+          `[CbbdClient] Network error for ${path}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        continue;
+      }
+
+      if (!res.ok) {
+        const body = (await res.text()).slice(0, ERROR_BODY_LIMIT);
+        const error = new Error(`[CbbdClient] HTTP ${res.status} for ${path}: ${body}`);
+        if (res.status === 429 || res.status >= 500) {
+          lastError = error; // transient — retry once
+          continue;
+        }
+        throw error; // other 4xx will not improve on retry
+      }
+
+      return (await res.json()) as T;
     }
-    return res.json() as Promise<T>;
+    throw lastError ?? new Error(`[CbbdClient] Request failed for ${path}`);
   }
 
   async getKentuckyGames(season: number): Promise<NormalizedGame[]> {
@@ -184,8 +214,7 @@ export class CbbdClient {
   }
 }
 
-export function createCbbdClient(): CbbdClient {
-  const apiKey = process.env.CBBD_API_KEY ?? '';
+export function createCbbdClient(apiKey: string = process.env.CBBD_API_KEY ?? ''): CbbdClient {
   if (!apiKey) {
     console.warn('[CbbdClient] CBBD_API_KEY not set — client will throw on any real call');
   }

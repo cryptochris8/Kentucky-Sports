@@ -4,7 +4,13 @@
 // This loader reads `assets/seed/dev_seed.json`, which is a build-time copy of
 // the CANONICAL seed at the repo root: `seed_data/dev_seed.json`.
 //
-// All stat values in that file are FICTIONAL demo data (source: "seed_demo").
+// Provenance: the seed's own `_meta.description` is the source of truth. In
+// short: the schedule and the team/player stat values are REAL official data
+// (source: "cfbd"/"cbbd", confidence: "official", refreshed via
+// `npm run sync-data`), while game_summaries, predictions, polls, and the
+// other fan-layer collections remain clearly labeled demo content
+// (source: "seed_demo", confidence: "demo").
+//
 // If the canonical seed changes, re-copy it into assets and re-register it in
 // pubspec.yaml. Do NOT hand-edit the asset copy — edit the canonical file.
 // -----------------------------------------------------------------------------

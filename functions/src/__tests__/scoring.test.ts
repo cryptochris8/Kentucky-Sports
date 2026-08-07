@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 // Import from scoringLogic (pure, no Firebase imports) so tests run without an emulator
-import { computePoints, isEntryCorrect, BASE_POINTS } from '../predictions/scoringLogic';
+import {
+  computePoints,
+  isEntryCorrect,
+  xpEventsForEntry,
+  BASE_POINTS,
+} from '../predictions/scoringLogic';
 import type { PredictionEntry, Prediction } from '@bluegrass/shared-models';
 
 describe('BASE_POINTS table', () => {
@@ -102,5 +107,25 @@ describe('isEntryCorrect', () => {
     expect(
       isEntryCorrect(makeEntry('1_7'), { correctOptionId: '8_14', type: 'margin_bucket' }),
     ).toBe(false);
+  });
+});
+
+describe('xpEventsForEntry', () => {
+  it('incorrect picks earn no XP events', () => {
+    expect(xpEventsForEntry('winner', false)).toEqual([]);
+    expect(xpEventsForEntry('exact_score', false)).toEqual([]);
+  });
+
+  it('a correct pick earns correct_prediction', () => {
+    expect(xpEventsForEntry('winner', true)).toEqual(['correct_prediction']);
+    expect(xpEventsForEntry('margin_bucket', true)).toEqual(['correct_prediction']);
+    expect(xpEventsForEntry('upset_pick', true)).toEqual(['correct_prediction']);
+  });
+
+  it('a correct exact-score pick additionally earns exact_score_bonus', () => {
+    expect(xpEventsForEntry('exact_score', true)).toEqual([
+      'correct_prediction',
+      'exact_score_bonus',
+    ]);
   });
 });

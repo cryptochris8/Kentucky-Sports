@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/router.dart';
 import '../../app/theme/colors.dart';
+import '../../app/theme/theme.dart';
 import '../../app/theme/typography.dart';
 import '../../core/config.dart';
 import '../../core/models/models.dart';
@@ -45,6 +46,7 @@ class HomeScreen extends ConsumerWidget {
             const SliverToBoxAdapter(child: _DailyDropSection()),
             const SliverToBoxAdapter(child: _PollSection()),
             const SliverToBoxAdapter(child: _FeedSection()),
+            const SliverToBoxAdapter(child: _FromTheVaultSection()),
             const SliverToBoxAdapter(child: _ExploreSection()),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
@@ -212,6 +214,10 @@ class _GamedayHeroTile extends ConsumerWidget {
               ),
             );
           }
+          // Sport-correct copy from the game doc: verb (Kickoff/Tipoff/…) and
+          // home/away preposition — never "Kickoff … vs" for a road tipoff.
+          final String verb = Fmt.startVerb(game.sport) ?? 'Next game';
+          final String vsAt = game.isHome ? 'vs' : 'at';
           return Column(
             children: <Widget>[
               _TileLabel(
@@ -227,8 +233,9 @@ class _GamedayHeroTile extends ConsumerWidget {
               const SizedBox(height: 10),
               CountdownStrip(
                 target: game.startTime,
+                sport: game.sport,
                 label:
-                    'Kickoff: Kentucky vs ${game.opponentName} (${Fmt.sportLabel(game.sport)})',
+                    '$verb: Kentucky $vsAt ${game.opponentName} (${Fmt.sportLabel(game.sport)})',
               ),
             ],
           );
@@ -407,41 +414,46 @@ class _DailyDropSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AsyncValue<List<TeamStat>> stats = ref.watch(teamStatsProvider);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const SectionHeader(
-            title: 'Stat of the Day',
-            eyebrow: 'From Gameday Stats',
-            padding: EdgeInsets.only(bottom: 10),
-          ),
-          stats.when(
-            loading: () => const BgCard(child: LoadingView()),
-            error: (Object e, _) => const SizedBox.shrink(),
-            data: (List<TeamStat> list) {
-              if (list.isEmpty) return const SizedBox.shrink();
-              final TeamStat bball = list.firstWhere(
-                (TeamStat s) => s.sport == 'mens_basketball',
-                orElse: () => list.first,
-              );
-              final double efg = bball.statValue('effectiveFgPct') ?? 0.55;
-              return StatCard.fromMetric(
+    return stats.maybeWhen(
+      data: (List<TeamStat> list) {
+        // Only ever show the card when a basketball doc actually carries the
+        // metric — no cross-sport fallback, no invented value (hard rule 6).
+        TeamStat? bball;
+        for (final TeamStat s in list) {
+          if (s.sport == 'mens_basketball') {
+            bball = s;
+            break;
+          }
+        }
+        final double? efg = bball?.statValue('effectiveFgPct');
+        if (bball == null || efg == null) return const SizedBox.shrink();
+        // Percentile / rank render ONLY when the doc's rankings provide them.
+        final int? secRank = bball.rankings['effectiveFgPctSEC'];
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const SectionHeader(
+                title: 'Stat of the Day',
+                eyebrow: 'From Gameday Stats',
+                padding: EdgeInsets.only(bottom: 10),
+              ),
+              StatCard.fromMetric(
                 metricKey: 'effectiveFgPct',
                 value: efg,
                 sport: 'mens_basketball',
                 source: bball.source,
                 updatedAt: bball.updatedAt,
                 confidence: bball.confidence,
-                percentile: 82,
-                rankText: '3rd in the SEC',
-                trend: TrendDirection.up,
-              );
-            },
+                percentile: bball.percentileFor('effectiveFgPct'),
+                rankText: secRank == null ? null : '#$secRank in the SEC',
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
     );
   }
 }
@@ -518,6 +530,152 @@ class _FeedSection extends ConsumerWidget {
                 ],
               );
             },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// From the Vault — a daily deterministic spotlight on one REAL UK season.
+// ---------------------------------------------------------------------------
+
+/// Day-of-year (0-based) of [now]'s LOCAL calendar date, computed with UTC
+/// arithmetic (every UTC day is exactly 24h) so a DST shift can never skip or
+/// repeat an index. Drives the "From the Vault" daily rotation.
+@visibleForTesting
+int vaultDayOfYear(DateTime now) => DateTime.utc(now.year, now.month, now.day)
+    .difference(DateTime.utc(now.year))
+    .inDays;
+
+/// Each day spotlights one of the Vault's real season records (the viewer's
+/// LOCAL calendar day-of-year modulo the season count — stable on a device
+/// for the whole local day, DST-safe, rolling over at local midnight; viewers
+/// in different timezones may see different pages near the boundary). All
+/// facts come from the season document; the tile carries its
+/// source/confidence row.
+class _FromTheVaultSection extends ConsumerWidget {
+  const _FromTheVaultSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AsyncValue<List<VaultSeason>> seasons =
+        ref.watch(vaultSeasonsProvider);
+    return seasons.maybeWhen(
+      data: (List<VaultSeason> list) {
+        if (list.isEmpty) return const SizedBox.shrink();
+        // Stable order (sport, then season) so the daily pick is deterministic
+        // regardless of asset ordering.
+        final List<VaultSeason> sorted = List<VaultSeason>.of(list)
+          ..sort((VaultSeason a, VaultSeason b) {
+            final int bySport = a.sport.compareTo(b.sport);
+            return bySport != 0 ? bySport : a.season.compareTo(b.season);
+          });
+        final int dayOfYear = vaultDayOfYear(DateTime.now());
+        final VaultSeason season = sorted[dayOfYear % sorted.length];
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const SectionHeader(
+                title: 'From the Vault',
+                eyebrow: "Today's page of the almanac",
+                padding: EdgeInsets.only(bottom: 10),
+              ),
+              _VaultSeasonSpotlightCard(season: season),
+            ],
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
+    );
+  }
+}
+
+/// The editorial spotlight card: sport/era eyebrow, the season headline, the
+/// real record under a gold rafters rule, and the required attribution row.
+class _VaultSeasonSpotlightCard extends StatelessWidget {
+  const _VaultSeasonSpotlightCard({required this.season});
+
+  final VaultSeason season;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
+    final TextTheme text = Theme.of(context).textTheme;
+
+    return BgCard(
+      onTap: () => context.push(Routes.vaultSeason(season.id)),
+      gradient: dark ? BgColors.nightGradient : BgColors.skyGradient,
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            '${Fmt.sportLabel(season.sport)} · ${season.conference}'
+                .toUpperCase(),
+            style: BgTypography.eyebrow(BgColors.goldBright),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'The ${season.seasonLabel} season',
+            style: BgTypography.display(
+              Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.25,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const GoldRule(width: 44),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              Text(
+                season.record,
+                style: BgTypography.statNumber(Colors.white, size: 34),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: Text(
+                    season.conferenceRecord == null
+                        ? 'overall'
+                        : 'overall · ${season.conferenceRecord} in ${season.conference} play',
+                    style: text.bodySmall?.copyWith(color: Colors.white70),
+                  ),
+                ),
+              ),
+              Text('Open', style: BgTypography.eyebrow(BgColors.goldBright)),
+              const SizedBox(width: 4),
+              const Icon(Icons.arrow_forward_rounded,
+                  size: 13, color: BgColors.goldBright),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Required attribution on a light strip (the established pattern for
+          // keeping source/confidence AA-legible on dark panels).
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.94),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Theme(
+              data: BgTheme.light(),
+              child: SourceConfidenceRow(
+                source: season.source.toUpperCase(),
+                updatedAt: season.updatedAt,
+                confidence: season.confidence,
+              ),
+            ),
           ),
         ],
       ),

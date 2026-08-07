@@ -88,14 +88,16 @@ class FourFactorValue {
   const FourFactorValue({
     required this.factor,
     required this.value,
-    required this.percentile,
+    this.percentile,
   });
 
   final FourFactor factor;
   final double value;
 
-  /// 0..100 national percentile (from seed rankings or computed).
-  final int percentile;
+  /// 0..100 national percentile (from seed rankings or computed), or null
+  /// when no comparison data was available — never a manufactured default
+  /// (matches [PercentileResult]'s null semantics).
+  final int? percentile;
 
   /// Display string honoring percent metrics.
   String get display => '${(value * 100).toStringAsFixed(1)}%';
@@ -116,7 +118,7 @@ List<FourFactorValue> extractFourFactors(
         FourFactorValue(
           factor: f,
           value: raw.toDouble(),
-          percentile: percentiles[f.key] ?? 50,
+          percentile: percentiles[f.key],
         ),
       );
     }

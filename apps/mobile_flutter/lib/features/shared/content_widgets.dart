@@ -18,7 +18,9 @@ class NewsLinkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
     return BgCard(
       onTap: () {
         ScaffoldMessenger.of(context)
@@ -34,10 +36,10 @@ class NewsLinkCard extends StatelessWidget {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: BgColors.blueTint,
+              color: scheme.primary.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.article_rounded, color: BgColors.deepBlue),
+            child: Icon(Icons.article_rounded, color: scheme.primary),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -48,7 +50,7 @@ class NewsLinkCard extends StatelessWidget {
                   children: <Widget>[
                     Pill(
                       label: Fmt.sportLabel(card.sport),
-                      color: BgColors.deepBlue,
+                      color: scheme.primary,
                       dense: true,
                     ),
                     const SizedBox(width: 6),
@@ -74,8 +76,8 @@ class NewsLinkCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: <Widget>[
-                    const Icon(Icons.open_in_new_rounded,
-                        size: 13, color: BgColors.slate),
+                    Icon(Icons.open_in_new_rounded,
+                        size: 13, color: scheme.onSurfaceVariant),
                     const SizedBox(width: 4),
                     Text('Read at source', style: text.labelSmall),
                   ],
@@ -235,8 +237,10 @@ class LevelHeader extends ConsumerWidget {
     final int sessionXp = ref.watch(sessionXpProvider);
     final int totalXp = user.xp + sessionXp;
     final LevelInfo info = levelInfoForXp(totalXp);
-    final Color fg = onDark ? Colors.white : BgColors.ink;
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final Color fg = onDark ? Colors.white : scheme.onSurface;
+    final TextTheme text = theme.textTheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,7 +273,7 @@ class LevelHeader extends ConsumerWidget {
             Text(
               '${Fmt.number(totalXp)} XP',
               style: BgTypography.statNumber(
-                onDark ? BgColors.goldBright : BgColors.deepBlue,
+                onDark ? BgColors.goldBright : scheme.primary,
                 size: 18,
               ),
             ),
@@ -278,10 +282,10 @@ class LevelHeader extends ConsumerWidget {
         const SizedBox(height: 8),
         MeterBar(
           value: info.progress,
-          color: onDark ? BgColors.goldBright : BgColors.deepBlue,
+          color: onDark ? BgColors.goldBright : scheme.primary,
           trackColor: onDark
               ? Colors.white.withValues(alpha: 0.2)
-              : BgColors.hairline,
+              : scheme.outline,
         ),
         const SizedBox(height: 4),
         Text(
@@ -289,7 +293,9 @@ class LevelHeader extends ConsumerWidget {
               ? '${Fmt.number(info.xpRemaining)} XP to ${levelName(info.level + 1)}'
               : 'Max level reached',
           style: text.bodySmall?.copyWith(
-            color: onDark ? Colors.white.withValues(alpha: 0.8) : BgColors.slate,
+            color: onDark
+                ? Colors.white.withValues(alpha: 0.8)
+                : scheme.onSurfaceVariant,
           ),
         ),
       ],

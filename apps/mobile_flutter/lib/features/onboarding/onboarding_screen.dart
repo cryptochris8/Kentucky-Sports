@@ -27,7 +27,9 @@ class OnboardingScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final Set<String> selected = ref.watch(favoriteSportsProvider);
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
 
     return Scaffold(
       body: DecoratedBox(
@@ -52,9 +54,11 @@ class OnboardingScreen extends ConsumerWidget {
               Expanded(
                 child: Container(
                   margin: const EdgeInsets.fromLTRB(14, 18, 14, 0),
-                  decoration: const BoxDecoration(
-                    color: BgColors.canvas,
-                    borderRadius: BorderRadius.vertical(
+                  // Theme surface (not a literal light token) so the sheet and
+                  // its theme-colored text stay legible in dark mode too.
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(28),
                     ),
                   ),
@@ -64,7 +68,7 @@ class OnboardingScreen extends ConsumerWidget {
                       Text('Pick your sports', style: text.headlineMedium),
                       const SizedBox(height: 4),
                       Text(
-                        'We will tailor your Pulse feed and predictions. You can change this anytime.',
+                        'We will tailor your Home feed and predictions. You can change this anytime.',
                         style: text.bodySmall,
                       ),
                       const SizedBox(height: 16),
@@ -91,7 +95,7 @@ class OnboardingScreen extends ConsumerWidget {
                 ),
               ),
               Container(
-                color: BgColors.canvas,
+                color: scheme.surface,
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 child: SafeArea(
                   top: false,
@@ -143,8 +147,9 @@ class _SportChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     return Material(
-      color: selected ? BgColors.deepBlue : BgColors.surface,
+      color: selected ? scheme.primary : scheme.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
         onTap: onTap,
@@ -154,7 +159,7 @@ class _SportChip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: selected ? BgColors.deepBlue : BgColors.hairline,
+              color: selected ? scheme.primary : scheme.outline,
               width: 1.4,
             ),
           ),
@@ -164,20 +169,20 @@ class _SportChip extends StatelessWidget {
               Icon(
                 icon,
                 size: 18,
-                color: selected ? Colors.white : BgColors.deepBlue,
+                color: selected ? scheme.onPrimary : scheme.primary,
               ),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
-                  color: selected ? Colors.white : BgColors.ink,
+                  color: selected ? scheme.onPrimary : scheme.onSurface,
                   fontWeight: FontWeight.w600,
                   fontSize: 13.5,
                 ),
               ),
               if (selected) ...<Widget>[
                 const SizedBox(width: 6),
-                const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+                Icon(Icons.check_rounded, size: 16, color: scheme.onPrimary),
               ],
             ],
           ),
@@ -197,14 +202,14 @@ class _DisclaimerCard extends ConsumerWidget {
       data: (dynamic c) => (c.independentFanDisclaimer as String?) ?? '',
       orElse: () => '',
     );
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     return BgCard(
-      color: BgColors.blueTint,
+      color: scheme.surfaceContainerHighest,
       borderColor: Colors.transparent,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Icon(Icons.info_outline_rounded,
-              size: 18, color: BgColors.deepBlue),
+          Icon(Icons.info_outline_rounded, size: 18, color: scheme.primary),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -212,7 +217,7 @@ class _DisclaimerCard extends ConsumerWidget {
               children: <Widget>[
                 Text(
                   'Independent fan app',
-                  style: BgTypography.eyebrow(BgColors.deepBlue),
+                  style: BgTypography.eyebrow(scheme.primary),
                 ),
                 const SizedBox(height: 4),
                 Text(

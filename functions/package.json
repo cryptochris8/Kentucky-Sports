@@ -2,8 +2,8 @@
   "name": "functions",
   "version": "1.0.0",
   "description": "Bluegrass Gameday — Firebase Cloud Functions",
-  "main": "lib/index.js",
-  "engines": { "node": "20" },
+  "main": "lib/functions/src/index.js",
+  "engines": { "node": "22" },
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
@@ -16,7 +16,7 @@
     "firebase-functions": "^6.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^22.0.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0",
     "@vitest/coverage-v8": "^1.6.0"

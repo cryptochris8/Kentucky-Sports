@@ -60,6 +60,31 @@ describe('football helpers', () => {
   });
 });
 
+// ── TS<->Dart parity fixtures ─────────────────────────────────────────────────
+// These exact values are also asserted by the Dart suite
+// (packages/stats_engine/dart/test/parity_test.dart). If one of these changes,
+// change the Dart fixture in the same commit.
+
+describe('football composites parity fixtures (mirrored in Dart)', () => {
+  it('driveFinisherScore blends red zone and PPG 50/50', () => {
+    expect(driveFinisherScore(0.86, 29.4)).toBe(72);
+    expect(driveFinisherScore(1.2, 60)).toBe(100); // both terms capped
+    expect(driveFinisherScore(0, 0)).toBe(0);
+    // pointsPerGame must matter: elite red zone + no offense is NOT a 100
+    expect(driveFinisherScore(0.9, 0)).toBe(45);
+  });
+
+  it('chaosFactorScore blends sacks and turnover margin 50/50', () => {
+    expect(chaosFactorScore(2.4, 0.5)).toBe(53);
+    expect(chaosFactorScore(3.0, 1.0)).toBe(63);
+    expect(chaosFactorScore(6, 4)).toBe(100); // both terms capped
+    // Each term floors at 0 — a terrible margin cannot go negative and
+    // cancel the sack component.
+    expect(chaosFactorScore(0, -4)).toBe(0);
+    expect(chaosFactorScore(5, -4)).toBe(50);
+  });
+});
+
 describe('percentile rank', () => {
   const population = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
@@ -80,20 +105,31 @@ describe('percentile rank', () => {
   });
 
   it('inverts when higherIsBetter is false', () => {
-    const pctGood = percentileRank(10, population, true);
-    const pctBad = percentileRank(10, population, false);
+    const pctGood = percentileRank(10, population, true)!;
+    const pctBad = percentileRank(10, population, false)!;
     expect(pctGood + pctBad).toBeCloseTo(100, 0);
   });
 
-  it('returns 0 for empty population', () => {
-    expect(percentileRank(50, [])).toBe(0);
+  it('returns null for empty population — no rank is manufactured', () => {
+    expect(percentileRank(50, [])).toBeNull();
   });
 
-  it('labels percentile tiers correctly', () => {
+  // Parity fixtures (mirrored in Dart parity_test.dart)
+  it('mid-rank formula parity fixtures', () => {
+    const pop = [10, 20, 30, 40, 50];
+    expect(percentileRank(50, pop)).toBe(90); // (4 + 0.5) / 5 * 100
+    expect(percentileRank(10, pop)).toBe(10); // (0 + 0.5) / 5 * 100
+    expect(percentileRank(10, pop, false)).toBe(90);
+    expect(percentileRank(30, [10, 20, 30, 40, 50, 60, 70, 80, 90, 100])).toBe(25);
+  });
+
+  it('labels percentile tiers correctly (ladder matches Dart)', () => {
     expect(percentileLabel(95)).toBe('Elite');
     expect(percentileLabel(80)).toBe('Excellent');
+    expect(percentileLabel(60)).toBe('Good');
     expect(percentileLabel(50)).toBe('Average');
-    expect(percentileLabel(5)).toBe('Bottom Tier');
+    expect(percentileLabel(34)).toBe('Below Average');
+    expect(percentileLabel(5)).toBe('Below Average');
   });
 
   it('buildPercentileResult returns structured result', () => {
@@ -107,6 +143,19 @@ describe('percentile rank', () => {
     expect(result.nationalPercentile).toBeGreaterThan(0);
     expect(result.label).toBeTruthy();
     expect(result.explanation).toContain('Effective FG %');
+  });
+
+  it('buildPercentileResult makes no tier claim without comparison data', () => {
+    const result = buildPercentileResult({
+      metric: 'yardsPerPlay',
+      metricLabel: 'Yards Per Play',
+      value: 5.4,
+      population: [],
+    });
+    expect(result.nationalPercentile).toBeNull();
+    expect(result.label).toBe('No Data');
+    expect(result.explanation).toBe('No comparison data available for Yards Per Play.');
+    expect(result.explanation).not.toContain('percentile');
   });
 });
 
@@ -124,7 +173,7 @@ describe('stat labels', () => {
 });
 
 describe('explainMetric', () => {
-  it('generates explanation with SEC rank', () => {
+  it('claims the edge for Kentucky only when its rank is better', () => {
     const text = explainMetric({
       metricName: 'effectiveFgPct',
       metricLabel: 'Effective FG %',
@@ -134,12 +183,40 @@ describe('explainMetric', () => {
       opponentRank: 5,
       plainMeaning: 'Kentucky makes the most of each shot attempt',
     });
-    expect(text).toContain('Effective FG %');
+    expect(text).toContain('Kentucky holds the edge in Effective FG %.');
     expect(text).toContain('#3 in the SEC');
     expect(text).toContain('Duke');
   });
 
-  it('generates explanation without ranks', () => {
+  it('credits the opponent when its rank is better', () => {
+    const text = explainMetric({
+      metricName: 'thirdDownPct',
+      metricLabel: 'Third-Down Conversion %',
+      value: 0.39,
+      secRank: 13,
+      opponentName: 'Tennessee',
+      opponentRank: 2,
+      plainMeaning: 'the offense keeps drives alive on third down',
+    });
+    expect(text).toContain('Tennessee has the edge in Third-Down Conversion %.');
+    expect(text).not.toContain('Kentucky holds the edge');
+    expect(text).not.toContain('biggest statistical edge');
+  });
+
+  it('calls even ranks even', () => {
+    const text = explainMetric({
+      metricName: 'tempo',
+      metricLabel: 'Tempo',
+      value: 69.2,
+      secRank: 4,
+      opponentName: 'Louisville',
+      opponentRank: 4,
+      plainMeaning: 'both teams want to push the pace',
+    });
+    expect(text).toContain('Kentucky and Louisville are even in Tempo.');
+  });
+
+  it('stays neutral without comparative data', () => {
     const text = explainMetric({
       metricName: 'turnoverMargin',
       metricLabel: 'Turnover Margin',
@@ -147,7 +224,24 @@ describe('explainMetric', () => {
       plainMeaning: 'Kentucky takes the ball away more than it gives it up',
       playerOrUnit: 'the defensive front seven',
     });
-    expect(text).toContain('Turnover Margin');
+    expect(text).toContain('Turnover Margin is one to watch in this matchup.');
+    expect(text).not.toContain('edge');
     expect(text).toContain('defensive front seven');
+  });
+
+  // Parity fixture: this exact verdict sentence is also produced by the Dart
+  // buildStatStory for a Kentucky-favoring Shot Quality comparison
+  // (see packages/stats_engine/dart/test/parity_test.dart).
+  it('verdict phrasing matches the Dart twin word-for-word', () => {
+    const text = explainMetric({
+      metricName: 'effectiveFgPct',
+      metricLabel: 'Shot Quality',
+      value: 0.552,
+      secRank: 2,
+      opponentName: 'Duke',
+      opponentRank: 6,
+      plainMeaning: 'Kentucky makes the most of each shot attempt',
+    });
+    expect(text.startsWith('Kentucky holds the edge in Shot Quality.')).toBe(true);
   });
 });

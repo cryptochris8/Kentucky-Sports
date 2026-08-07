@@ -1,12 +1,12 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import {
-  onAuthStateChanged,
+  onIdTokenChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   type User,
 } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { auth, useEmulator } from '../lib/firebase';
 import { getUserDoc } from '../data/firestore';
 import type { UserRole } from '../data/types';
 
@@ -27,19 +27,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Force-refresh the ID token once per signed-in uid so a freshly granted
+  // custom claim lands without a manual reload; subsequent onIdTokenChanged
+  // callbacks read the cached token (a forced refresh mints a new token, which
+  // re-fires the listener — refreshing every time would loop).
+  const refreshedForUid = useRef<string | null>(null);
+
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+    // onIdTokenChanged (not onAuthStateChanged) so hourly token refreshes —
+    // which is when server-granted claims actually arrive — update the role.
+    const unsub = onIdTokenChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
 
       if (firebaseUser) {
-        // 1. Try to read role from custom claims (set by Cloud Functions in production)
-        const tokenResult = await firebaseUser.getIdTokenResult(/* forceRefresh */ true);
+        // 1. The custom claim is authoritative — firestore.rules derives every
+        //    role from request.auth.token.role, so the UI must match it.
+        const force = refreshedForUid.current !== firebaseUser.uid;
+        refreshedForUid.current = firebaseUser.uid;
+        const tokenResult = await firebaseUser.getIdTokenResult(force);
         const claimRole = tokenResult.claims['role'] as UserRole | undefined;
 
         if (claimRole) {
           setRole(claimRole);
         } else {
-          // 2. Fallback: read role from users/{uid} doc (works for local dev / emulator)
+          // 2. Fallback: read role from users/{uid} doc. This is a local-dev
+          //    convenience (the emulator seed has no claims) — it cannot grant
+          //    real access, since the rules only honor the claim.
           try {
             const userDoc = await getUserDoc(firebaseUser.uid);
             setRole(userDoc?.role ?? 'user');
@@ -48,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } else {
+        refreshedForUid.current = null;
         setRole(null);
       }
 
@@ -73,6 +87,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * relies on the Firestore role fallback for local development.
    */
   const devSignIn = async () => {
+    if (!useEmulator) {
+      // Hard guard: this helper creates a known-credential account, which must
+      // never happen against the production Auth tenant. LoginPage hides the
+      // button outside emulator mode; this throw covers any other caller.
+      throw new Error('Dev sign-in is emulator-only. Set VITE_USE_EMULATOR=true and run the Auth emulator.');
+    }
     const email = 'admin@bluegrassgameday.dev';
     const password = 'devpassword123';
     try {

@@ -112,6 +112,7 @@ interface CfbdRecord {
 }
 interface CfbdGame {
   homeTeam: string; awayTeam: string; homePoints: number | null; awayPoints: number | null;
+  startDate?: string;
 }
 interface CfbdAdvanced {
   offense: { plays: number; ppa: number; successRate: number; explosiveness: number };
@@ -185,8 +186,11 @@ async function syncFootball(now: string, missing: string[]) {
 
   const recArr = await getJson<CfbdRecord[]>(CFBD_BASE, `/records?year=${FOOTBALL_YEAR}&team=Kentucky`, CFBD_KEY);
   const rec = recArr[0]?.total;
-  const games = rec?.games ?? S["games"] ?? 12;
+  // Never guess a denominator: when neither /records nor /stats/season returns
+  // the game count, per-game values are omitted (not fabricated over 12).
+  const games: number | null = rec?.games ?? S["games"] ?? null;
   const record = rec ? `${rec.wins}-${rec.losses}` : null;
+  if (!games) missing.push("football games played (per-game values omitted — no game count from /records or /stats/season)");
 
   // Points scored / allowed from the games list (not exposed in /stats/season).
   const gamesArr = await getJson<CfbdGame[]>(
@@ -215,21 +219,24 @@ async function syncFootball(now: string, missing: string[]) {
       pointsPerGame: scored ? r(pf / scored) : null,
       pointsAllowedPerGame: scored ? r(pa / scored) : null,
       yardsPerPlay: plays ? r(S["totalYards"] / plays, 2) : null,
-      totalYardsPerGame: r(S["totalYards"] / games),
-      passingYardsPerGame: r(S["netPassingYards"] / games),
-      rushingYardsPerGame: r(S["rushingYards"] / games),
+      totalYardsPerGame: games ? r(S["totalYards"] / games) : null,
+      passingYardsPerGame: games ? r(S["netPassingYards"] / games) : null,
+      rushingYardsPerGame: games ? r(S["rushingYards"] / games) : null,
       thirdDownPct: S["thirdDowns"] ? r(S["thirdDownConversions"] / S["thirdDowns"], 3) : null,
-      turnoverMargin: r((S["turnoversOpponent"] - S["turnovers"]) / games, 2),
+      turnoverMargin: games ? r((S["turnoversOpponent"] - S["turnovers"]) / games, 2) : null,
       takeaways: S["turnoversOpponent"] ?? null,
       giveaways: S["turnovers"] ?? null,
-      sacksPerGame: r(S["sacks"] / games, 2),
+      sacksPerGame: games ? r(S["sacks"] / games, 2) : null,
       successRate: r(adv?.offense.successRate ?? null, 3),
       explosiveness: r(adv?.offense.explosiveness ?? null, 3),
       ppaOffense: r(adv?.offense.ppa ?? null, 3),
       ppaDefense: r(adv?.defense.ppa ?? null, 3),
     }) as Record<string, number | string | null>,
     source: "cfbd", updatedAt: now, confidence: "official",
-    note: "Real 2025 CFBD data. Per-game values derived from season totals over 12 games; points from the game log. redZoneScorePct/QBR not provided by the available CFBD tier.",
+    note: `Real ${FOOTBALL_YEAR} CFBD data. ${games
+      ? `Per-game values derived from season totals over ${games} games; `
+      : "Per-game values omitted (game count unavailable from CFBD); "
+    }points from the game log. redZoneScorePct/QBR not provided by the available CFBD tier.`,
   };
   if (!record) missing.push("football record (/records)");
 
@@ -309,7 +316,7 @@ async function syncFootball(now: string, missing: string[]) {
     },
   ];
 
-  return { teamStat, profiles, stats, picks: { qb, rb, wr } };
+  return { teamStat, profiles, stats, picks: { qb, rb, wr }, gamesArr };
 }
 
 // ── Fetch + transform: BASKETBALL ───────────────────────────────────────────────
@@ -449,6 +456,77 @@ function replaceArray(text: string, key: string, value: unknown[]): string {
   return text.replace(re, `$1${body}`);
 }
 
+// Rewrite _meta.description so the file's self-description can't drift from
+// what the sync actually wrote (the old text claimed all stat values were demo
+// long after they became real).
+const META_DESCRIPTION =
+  "Bluegrass Gameday development seed data. SCHEDULE/opponents are the REAL 2026 Kentucky football schedule plus a REAL 2025 result (Eastern Michigan); the 2026-27 basketball slate is tentative (schedule not yet released). team_stats and player_stats carry REAL synced values (source: cfbd/cbbd, confidence: official) refreshed via npm run sync-data; player ids like fb_qb_demo are legacy slot slugs that now hold real CFBD/CBBD players — do not rename them (player_stats and articles reference them). game_summaries, predictions, polls, recruits, high_school_games and users remain illustrative demo content (source: seed_demo or manual, confidence: demo). No official UK marks, no copyrighted article text, no real athlete likenesses for collectibles.";
+
+function replaceMetaDescription(text: string, desc: string): string {
+  const re = /("_meta":\s*\{\s*\r?\n\s*"description":\s*")(?:[^"\\]|\\.)*(")/;
+  if (!re.test(text)) throw new Error('Could not locate _meta.description in seed.');
+  return text.replace(re, `$1${desc.replace(/[\\"]/g, (c) => "\\" + c)}$2`);
+}
+
+// ── Games verification (schedule facts reconciled against CFBD) ────────────────
+// The seed's games array is the app's factual anchor for opponents, dates,
+// home/away and final scores. For the synced football season we check each seed
+// game against the CFBD game log already fetched: rows that match get stamped
+// source:"cfbd" / confidence:"official"; mismatches are REPORTED, never silently
+// overwritten (real data may reveal a hand-entry typo that needs a human look).
+
+interface SeedGameRow {
+  id: string;
+  sport?: string;
+  season?: number;
+  opponentName?: string;
+  homeTeamId?: string;
+  startTime?: string;
+  status?: string;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  [k: string]: unknown;
+}
+
+function reconcileFootballGames(
+  seedGames: SeedGameRow[],
+  cfbdGames: CfbdGame[],
+  now: string,
+  notes: string[],
+): SeedGameRow[] {
+  return seedGames.map((g) => {
+    if (g.sport !== "football" || g.season !== FOOTBALL_YEAR) return g;
+    const row = cfbdGames.find((c) => {
+      const opp = c.homeTeam === "Kentucky" ? c.awayTeam : c.homeTeam;
+      return opp === g.opponentName;
+    });
+    if (!row) {
+      notes.push(`games/${g.id}: no CFBD ${FOOTBALL_YEAR} row for opponent "${g.opponentName}" — left as-is`);
+      return g;
+    }
+    const cfbdKyHome = row.homeTeam === "Kentucky";
+    const seedKyHome = g.homeTeamId === "kentucky_football";
+    const dtSeed = g.startTime ? Date.parse(g.startTime) : NaN;
+    const dtCfbd = row.startDate ? Date.parse(row.startDate) : NaN;
+    const sameDay =
+      Number.isFinite(dtSeed) && Number.isFinite(dtCfbd) &&
+      Math.abs(dtSeed - dtCfbd) < 36 * 3600 * 1000;
+    const cfbdKy = cfbdKyHome ? row.homePoints : row.awayPoints;
+    const cfbdOpp = cfbdKyHome ? row.awayPoints : row.homePoints;
+    const seedKy = seedKyHome ? g.homeScore : g.awayScore;
+    const seedOpp = seedKyHome ? g.awayScore : g.homeScore;
+    const scoresMatch = g.status !== "final" || (seedKy === cfbdKy && seedOpp === cfbdOpp);
+    if (cfbdKyHome === seedKyHome && sameDay && scoresMatch) {
+      return { ...g, source: "cfbd", updatedAt: now, confidence: "official" };
+    }
+    notes.push(
+      `games/${g.id}: CFBD MISMATCH (home ${seedKyHome}/${cfbdKyHome}, sameDay ${sameDay}, ` +
+        `score seed ${seedKy}-${seedOpp} vs cfbd ${cfbdKy}-${cfbdOpp}) — NOT overwritten, verify by hand`,
+    );
+    return g;
+  });
+}
+
 // ── Main ────────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -465,10 +543,18 @@ async function main() {
   const playerProfiles = [...fb.profiles, ...bb.profiles];
   const playerStats = [...fb.stats, ...bb.stats];
 
+  // Verify hand-entered schedule facts against the CFBD game log (matches get
+  // stamped official; mismatches are reported below, never overwritten).
+  const gameNotes: string[] = [];
+  const seedGames = (JSON.parse(original) as { games?: SeedGameRow[] }).games ?? [];
+  const reconciledGames = reconcileFootballGames(seedGames, fb.gamesArr, now, gameNotes);
+
   let out = original;
+  out = replaceArray(out, "games", reconciledGames);
   out = replaceArray(out, "team_stats", teamStats);
   out = replaceArray(out, "player_profiles", playerProfiles);
   out = replaceArray(out, "player_stats", playerStats);
+  out = replaceMetaDescription(out, META_DESCRIPTION);
 
   JSON.parse(out); // validate before writing — throws on any malformed result
   writeFileSync(SEED, out);
@@ -500,6 +586,12 @@ async function main() {
   if (missing.length) {
     console.log("\nLeft as-is / not provided by the API (NOT fabricated):");
     for (const m of missing) console.log(`  - ${m}`);
+  }
+  const verified = reconciledGames.filter((g) => g.source === "cfbd").length;
+  console.log(`\nGames verified against CFBD: ${verified} stamped official.`);
+  if (gameNotes.length) {
+    console.log("Games needing a human look (NOT overwritten):");
+    for (const n of gameNotes) console.log(`  - ${n}`);
   }
   console.log("\nWrote seed + Flutter asset. JSON validated.");
 }

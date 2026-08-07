@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/colors.dart';
 import '../../app/theme/typography.dart';
@@ -29,7 +28,9 @@ class _GamedayStoryCardState extends State<GamedayStoryCard> {
   @override
   Widget build(BuildContext context) {
     final Article a = widget.article;
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
     final bool isRecap = a.isRecap;
 
     return BgCard(
@@ -52,7 +53,7 @@ class _GamedayStoryCardState extends State<GamedayStoryCard> {
                   Text(
                     a.subheadline,
                     style: text.bodyMedium?.copyWith(
-                      color: BgColors.slate,
+                      color: scheme.onSurfaceVariant,
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -84,7 +85,7 @@ class _GamedayStoryCardState extends State<GamedayStoryCard> {
                       Text(
                         _expanded ? 'Show less' : 'Read full story',
                         style: TextStyle(
-                          color: BgColors.deepBlue,
+                          color: scheme.primary,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
@@ -94,7 +95,7 @@ class _GamedayStoryCardState extends State<GamedayStoryCard> {
                         _expanded
                             ? Icons.keyboard_arrow_up_rounded
                             : Icons.keyboard_arrow_down_rounded,
-                        color: BgColors.deepBlue,
+                        color: scheme.primary,
                         size: 18,
                       ),
                     ],
@@ -130,7 +131,7 @@ class _GamedayStoryCardState extends State<GamedayStoryCard> {
                       '"${a.closingLine}"',
                       style: text.bodyMedium?.copyWith(
                         fontStyle: FontStyle.italic,
-                        color: BgColors.slate,
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -166,7 +167,9 @@ class _StatStoryTileState extends State<StatStoryTile> {
   @override
   Widget build(BuildContext context) {
     final Article a = widget.article;
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
 
     return BgCard(
       onTap: () => setState(() => _expanded = !_expanded),
@@ -179,13 +182,13 @@ class _StatStoryTileState extends State<StatStoryTile> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: BgColors.blueTint,
+                  color: scheme.primary.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.auto_stories_rounded,
                   size: 16,
-                  color: BgColors.deepBlue,
+                  color: scheme.primary,
                 ),
               ),
               const SizedBox(width: 10),
@@ -250,7 +253,7 @@ class _ArticleHeader extends StatelessWidget {
 
   final Article article;
 
-  ({Color color, IconData icon, String label}) get _type {
+  ({Color color, IconData icon, String label}) _type(ColorScheme scheme) {
     switch (article.type) {
       case 'recap':
         return (
@@ -267,7 +270,7 @@ class _ArticleHeader extends StatelessWidget {
       case 'preview':
       default:
         return (
-          color: BgColors.deepBlue,
+          color: scheme.primary,
           icon: Icons.article_rounded,
           label: 'GAMEDAY STORY',
         );
@@ -276,7 +279,8 @@ class _ArticleHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ({Color color, IconData icon, String label}) t = _type;
+    final ({Color color, IconData icon, String label}) t =
+        _type(Theme.of(context).colorScheme);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -319,11 +323,12 @@ class _NarrativeSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final TextTheme text = theme.textTheme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: BgColors.canvas,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -469,9 +474,10 @@ class _VerdictSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final TextTheme text = theme.textTheme;
     final Color accentColor =
-        isRecap ? BgColors.positive : BgColors.deepBlue;
+        isRecap ? BgColors.positive : theme.colorScheme.primary;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -542,13 +548,14 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Color accent = Theme.of(context).colorScheme.primary;
     return Row(
       children: <Widget>[
-        Icon(icon, size: 14, color: BgColors.deepBlue),
+        Icon(icon, size: 14, color: accent),
         const SizedBox(width: 6),
         Text(
           label.toUpperCase(),
-          style: BgTypography.eyebrow(BgColors.deepBlue),
+          style: BgTypography.eyebrow(accent),
         ),
       ],
     );
@@ -562,6 +569,27 @@ class _AiAttributionFooter extends StatelessWidget {
   final Article article;
   final bool inline;
 
+  /// The provenance line derives from the article's own confidence so the
+  /// footer never overclaims its inputs (hard rule 6). The wording mirrors
+  /// the pipeline's confidence tiers (demo / fan_rumor < researched <
+  /// official) and [ConfidenceLabel]: only a truly 'official' article may
+  /// say "official stats"; anything unrecognized falls back to a neutral
+  /// claim rather than an inflated one.
+  String get _attribution {
+    switch (article.confidence.toLowerCase()) {
+      case 'official':
+      case 'verified':
+        return 'Generated by Bluegrass Gameday AI from official stats';
+      case 'researched':
+        return 'Generated by Bluegrass Gameday AI from researched stats';
+      case 'demo':
+        return 'Generated by Bluegrass Gameday AI from demo stats';
+      default:
+        // fan_rumor + unknown tiers — neutral wording that never oversells.
+        return 'Generated by Bluegrass Gameday AI from stored stats';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (inline) {
@@ -571,7 +599,7 @@ class _AiAttributionFooter extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
       decoration: BoxDecoration(
-        color: BgColors.canvas,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius:
             const BorderRadius.vertical(bottom: Radius.circular(16)),
       ),
@@ -586,10 +614,10 @@ class _AiAttributionFooter extends StatelessWidget {
                 color: BgColors.mist,
               ),
               const SizedBox(width: 5),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Generated by Bluegrass Gameday AI from official stats',
-                  style: TextStyle(
+                  _attribution,
+                  style: const TextStyle(
                     fontSize: 10,
                     color: BgColors.mist,
                     fontWeight: FontWeight.w600,
@@ -619,10 +647,10 @@ class _AiAttributionFooter extends StatelessWidget {
           children: <Widget>[
             const Icon(Icons.smart_toy_outlined, size: 12, color: BgColors.mist),
             const SizedBox(width: 4),
-            const Expanded(
+            Expanded(
               child: Text(
-                'Generated by Bluegrass Gameday AI from official stats',
-                style: TextStyle(
+                _attribution,
+                style: const TextStyle(
                   fontSize: 10,
                   color: BgColors.mist,
                   fontWeight: FontWeight.w600,
@@ -640,44 +668,6 @@ class _AiAttributionFooter extends StatelessWidget {
           confidence: article.confidence,
         ),
       ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Convenience loading wrapper — renders nothing when no article is available.
-// ---------------------------------------------------------------------------
-
-/// Watches [provider] and renders a [GamedayStoryCard] when data is present,
-/// or returns [SizedBox.shrink] on null / loading / error.
-class AsyncGamedayStoryCard extends ConsumerWidget {
-  const AsyncGamedayStoryCard({super.key, required this.provider});
-
-  final ProviderListenable<AsyncValue<Article?>> provider;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return ref.watch(provider).maybeWhen(
-      data: (Article? a) => a == null
-          ? const SizedBox.shrink()
-          : GamedayStoryCard(article: a),
-      orElse: () => const SizedBox.shrink(),
-    );
-  }
-}
-
-/// Watches [provider] and renders a [StatStoryTile] when data is present.
-class AsyncStatStoryTile extends ConsumerWidget {
-  const AsyncStatStoryTile({super.key, required this.provider});
-
-  final ProviderListenable<AsyncValue<Article?>> provider;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return ref.watch(provider).maybeWhen(
-      data: (Article? a) =>
-          a == null ? const SizedBox.shrink() : StatStoryTile(article: a),
-      orElse: () => const SizedBox.shrink(),
     );
   }
 }

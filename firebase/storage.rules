@@ -15,15 +15,20 @@ service firebase.storage {
     }
 
     // Public, read-only content assets (badge art, card art) — written by editors only.
+    // Deletes are split from create/update: request.resource is null on delete,
+    // so an isImage() check there would always deny.
     match /content/{allPaths=**} {
       allow read: if true;
-      allow write: if isEditor() && isImage();
+      allow create, update: if isEditor() && isImage();
+      allow delete: if isEditor();
     }
 
-    // Per-user uploads (avatars). Users manage only their own folder.
+    // Per-user uploads (avatars). Users manage only their own folder and may
+    // delete their own uploads (UX + data-deletion requests).
     match /users/{userId}/{allPaths=**} {
       allow read: if true;
-      allow write: if isSignedIn() && request.auth.uid == userId && isImage();
+      allow create, update: if isSignedIn() && request.auth.uid == userId && isImage();
+      allow delete: if isSignedIn() && request.auth.uid == userId;
     }
 
     // Raw provider snapshots / sync debug — Functions service account only.

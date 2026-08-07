@@ -6,6 +6,7 @@ import '../../app/theme/typography.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/providers/data_providers.dart';
+import '../../core/providers/local_state.dart';
 import '../../core/utils/format.dart';
 import '../../core/widgets/widgets.dart';
 
@@ -43,20 +44,21 @@ class _SafetyBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: BgCard(
-        color: BgColors.blueTint,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderColor: Colors.transparent,
         child: Row(
           children: <Widget>[
-            const Icon(Icons.shield_rounded, color: BgColors.deepBlue),
+            Icon(Icons.shield_rounded, color: theme.colorScheme.primary),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 'School and team coverage only. We focus on schedules, scores, '
                 'and public KHSAA links — no direct messaging.',
-                style: Theme.of(context).textTheme.bodySmall,
+                style: theme.textTheme.bodySmall,
               ),
             ),
           ],
@@ -111,7 +113,7 @@ class _FollowedSchools extends ConsumerWidget {
                       padding: const EdgeInsets.only(bottom: 10),
                       child: _SchoolCard(
                         school: s,
-                        following: followed.contains(s.id),
+                        initiallyFollowing: followed.contains(s.id),
                       ),
                     ),
                 ],
@@ -124,23 +126,25 @@ class _FollowedSchools extends ConsumerWidget {
   }
 }
 
-class _SchoolCard extends StatefulWidget {
-  const _SchoolCard({required this.school, required this.following});
+/// A school row with a follow toggle. Follow state lives in the feature's
+/// Riverpod graph ([followedSchoolsProvider]) layered over the seed user's
+/// favorites — no local widget state (one state style per feature, rule 7).
+/// The snackbar makes no XP claim: none is awarded for follows today.
+class _SchoolCard extends ConsumerWidget {
+  const _SchoolCard({required this.school, required this.initiallyFollowing});
 
   final HighSchool school;
-  final bool following;
+  final bool initiallyFollowing;
 
   @override
-  State<_SchoolCard> createState() => _SchoolCardState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final HighSchool s = school;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
+    final Map<String, bool> overrides = ref.watch(followedSchoolsProvider);
+    final bool following = overrides[s.id] ?? initiallyFollowing;
 
-class _SchoolCardState extends State<_SchoolCard> {
-  late bool _following = widget.following;
-
-  @override
-  Widget build(BuildContext context) {
-    final HighSchool s = widget.school;
-    final TextTheme text = Theme.of(context).textTheme;
     return BgCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
@@ -149,10 +153,10 @@ class _SchoolCardState extends State<_SchoolCard> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: BgColors.blueTint,
+              color: scheme.primary.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.school_rounded, color: BgColors.deepBlue),
+            child: Icon(Icons.school_rounded, color: scheme.primary),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -169,15 +173,16 @@ class _SchoolCardState extends State<_SchoolCard> {
           ),
           OutlinedButton(
             onPressed: () {
-              setState(() => _following = !_following);
+              final bool next = !following;
+              ref
+                  .read(followedSchoolsProvider.notifier)
+                  .setFollowing(s.id, next);
               ScaffoldMessenger.of(context)
                 ..hideCurrentSnackBar()
                 ..showSnackBar(
                   SnackBar(
                     content: Text(
-                      _following
-                          ? 'Following ${s.name} · +5 XP'
-                          : 'Unfollowed ${s.name}',
+                      next ? 'Following ${s.name}' : 'Unfollowed ${s.name}',
                     ),
                   ),
                 );
@@ -185,10 +190,10 @@ class _SchoolCardState extends State<_SchoolCard> {
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(0, 36),
               padding: const EdgeInsets.symmetric(horizontal: 14),
-              backgroundColor: _following ? BgColors.deepBlue : null,
-              foregroundColor: _following ? Colors.white : BgColors.deepBlue,
+              backgroundColor: following ? scheme.primary : null,
+              foregroundColor: following ? scheme.onPrimary : scheme.primary,
             ),
-            child: Text(_following ? 'Following' : 'Follow'),
+            child: Text(following ? 'Following' : 'Follow'),
           ),
         ],
       ),
@@ -256,8 +261,11 @@ class _HsGameRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final HighSchoolGame g = row.game;
     final String schoolName = row.school?.name ?? 'School';
-    final TextTheme text = Theme.of(context).textTheme;
+    final ThemeData theme = Theme.of(context);
+    final ColorScheme scheme = theme.colorScheme;
+    final TextTheme text = theme.textTheme;
     final bool isFinal = g.status == 'final';
+    final bool hasScores = g.schoolScore != null && g.opponentScore != null;
 
     return BgCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -271,7 +279,7 @@ class _HsGameRow extends StatelessWidget {
                   g.sport == 'football'
                       ? Icons.sports_football_rounded
                       : Icons.sports_basketball_rounded,
-                  color: BgColors.deepBlue,
+                  color: scheme.primary,
                   size: 20,
                 ),
                 const SizedBox(height: 2),
@@ -293,11 +301,15 @@ class _HsGameRow extends StatelessWidget {
               ],
             ),
           ),
-          if (isFinal)
+          // Never interpolate missing scores — an unscored final shows a
+          // plain "Final" pill instead of "null - null".
+          if (isFinal && hasScores)
             Text(
               '${g.schoolScore} - ${g.opponentScore}',
-              style: BgTypography.statNumber(BgColors.deepBlue, size: 18),
+              style: BgTypography.statNumber(scheme.primary, size: 18),
             )
+          else if (isFinal)
+            Pill(label: 'Final', color: scheme.primary, dense: true)
           else
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -360,6 +372,7 @@ class _KhsaaLinks extends ConsumerWidget {
             ),
           ),
         ),
+        // KHSAA + local news link-outs (admin-curated cards only).
         news.maybeWhen(
           data: (List<NewsCard> list) {
             final List<NewsCard> hs = list
@@ -407,7 +420,8 @@ class _LinkCard extends StatelessWidget {
       },
       child: Row(
         children: <Widget>[
-          const Icon(Icons.article_outlined, color: BgColors.deepBlue),
+          Icon(Icons.article_outlined,
+              color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

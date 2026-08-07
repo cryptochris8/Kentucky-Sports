@@ -25,9 +25,17 @@ String displayName(String key, {String sport = 'football'}) {
 /// Builds a one-paragraph "stat story" comparing Kentucky vs an opponent for
 /// a single metric, using the controlled template from docs/06.
 ///
+/// The verdict is honest: an edge is only claimed for the side the values
+/// actually favor (honoring [MetricLabel.higherIsBetter]); equal values read
+/// as even.
+///
+/// PARITY: the verdict phrasing is mirrored word-for-word in the TypeScript
+/// twin's explainMetric (packages/stats_engine/typescript/src/explainMetric.ts).
+/// Change one side only in lockstep with the other.
+///
 /// Example output:
-///   "Kentucky's edge is Shot Quality. The Cats post 0.552 while Duke sits at
-///    0.561. In plain English: ..."
+///   "Duke has the edge in Shot Quality. The Cats post 55.2% while Duke sits
+///    at 56.1%. In plain English: ..."
 String buildStatStory({
   required String key,
   required double kentuckyValue,
@@ -38,12 +46,15 @@ String buildStatStory({
   final MetricLabel meta = labelFor(key, sport: sport);
   final String ky = formatMetricValue(key, kentuckyValue, sport: sport);
   final String opp = formatMetricValue(key, opponentValue, sport: sport);
+  final bool tie = kentuckyValue == opponentValue;
   final bool kyAhead = meta.higherIsBetter
-      ? kentuckyValue >= opponentValue
-      : kentuckyValue <= opponentValue;
-  final String verdict = kyAhead
-      ? "Kentucky holds the edge in ${meta.shortLabel}."
-      : "$opponentName has the edge in ${meta.shortLabel}.";
+      ? kentuckyValue > opponentValue
+      : kentuckyValue < opponentValue;
+  final String verdict = tie
+      ? 'Kentucky and $opponentName are even in ${meta.shortLabel}.'
+      : kyAhead
+          ? 'Kentucky holds the edge in ${meta.shortLabel}.'
+          : '$opponentName has the edge in ${meta.shortLabel}.';
   return '$verdict The Cats post $ky while $opponentName sits at $opp. '
       'In plain English: ${meta.explanation}';
 }
